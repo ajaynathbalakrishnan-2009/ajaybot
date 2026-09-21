@@ -17,48 +17,7 @@ import { streamChatResponse, parseArtifacts } from './services/chatService';
 import AuthScreen from './components/AuthScreen';
 import { supabase, isAuthConfigured } from './lib/supabase';
 
-export default function App() {
-  const [authUser, setAuthUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isAuthConfigured || !supabase) {
-      setAuthLoading(false);
-      return;
-    }
-
-    let mounted = true;
-    supabase.auth.getUser()
-      .then(async ({ data }) => {
-        if (!mounted) return;
-        setAuthUser(data.user || null);
-      })
-      .finally(() => {
-        if (mounted) setAuthLoading(false);
-      });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthUser(session?.user || null);
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, []);
-
-  if (authLoading) {
-    return <div className="min-h-screen w-screen flex items-center justify-center bg-brand-bg-light dark:bg-brand-bg text-slate-500">Loading AjayBot...</div>;
-  }
-
-  if (!isAuthConfigured) {
-    return <AuthScreen />;
-  }
-
-  if (!authUser) {
-    return <AuthScreen />;
-  }
-
+function AuthenticatedApp() {
   // State
   const [chats, setChats] = useState(getStoredChats);
   const [activeChatId, setActiveChatId] = useState(getActiveChatId);
@@ -417,4 +376,45 @@ export default function App() {
       />
     </div>
   );
+}
+
+export default function App() {
+  const [authUser, setAuthUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isAuthConfigured || !supabase) {
+      setAuthLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    supabase.auth.getUser()
+      .then(async ({ data }) => {
+        if (!mounted) return;
+        setAuthUser(data.user || null);
+      })
+      .finally(() => {
+        if (mounted) setAuthLoading(false);
+      });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user || null);
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (authLoading) {
+    return <div className="min-h-screen w-screen flex items-center justify-center bg-brand-bg-light dark:bg-brand-bg text-slate-500">Loading AjayBot...</div>;
+  }
+
+  if (!isAuthConfigured || !authUser) {
+    return <AuthScreen />;
+  }
+
+  return <AuthenticatedApp />;
 }
