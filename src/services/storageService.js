@@ -32,7 +32,7 @@ const INITIAL_CHATS = [
 - **Interactive Artifacts**: When creating web apps, diagrams, or code, I render them in a real-time side panel where you can preview and test them instantly.
 - **Deep Reasoning**: See my step-by-step thinking process on complex programming, math, and writing challenges.
 - **Code & Markdown**: Syntax highlighting, copyable snippets, and clean document authoring.
-- **Customizable**: Choose between different AjayBot models, configure custom system prompts, or connect your own Anthropic API key in Settings.
+- **Customizable**: Choose between different AjayBot models, configure custom system prompts, or connect a server-configured AI provider in Settings.
 
 Feel free to ask a question, request code, or try one of the suggestions below!`,
       }
