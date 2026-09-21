@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Sliders, Trash2, Check, AlertCircle, Cpu, Globe, Zap, Key } from 'lucide-react';
+import { X, Sliders, Trash2, Check, AlertCircle, Cpu, Globe, Zap, Key, Laptop } from 'lucide-react';
 
 export default function SettingsModal({ isOpen, onClose, settings, onSaveSettings, onClearAllChats }) {
   const [formData, setFormData] = useState({ ...settings });
@@ -76,6 +76,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
                 ['simulated', 'Demo Engine', 'Local rule-based demo; no API key required.', Cpu],
                 ['gemini', 'Google Gemini', 'Uses the Gemini key configured on the AjayBot server.', Zap],
                 ['openrouter', 'OpenRouter', 'Uses the OpenRouter key configured on the AjayBot server.', Globe],
+                ['ollama', 'Ollama Local', 'Runs a local model on your computer. No API key required.', Laptop],
                 ['anthropic', 'Anthropic', 'Uses the Anthropic key configured on the AjayBot server.', Key],
               ].map(([id, name, description, Icon]) => (
                 <button
@@ -105,7 +106,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
               API keys are no longer stored in this browser.
             </p>
             <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-              Configure GEMINI_API_KEY, OPENROUTER_API_KEY, or ANTHROPIC_API_KEY in the server's .env file, then restart the AjayBot backend.
+              Configure GEMINI_API_KEY, OPENROUTER_API_KEY, or ANTHROPIC_API_KEY in the server's .env file. Ollama Local does not need an API key; install Ollama and download a model, then restart AjayBot.
             </p>
           </div>
 
