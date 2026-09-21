@@ -1,32 +1,33 @@
 import http from 'node:http';
 
 const PORT = Number(process.env.PORT || 8787);
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 
 const MODEL_MAP = {
   gemini: {
-    flagship: 'gemini-3.8-flash',
-    fast: 'gemini-3.6-flash',
-    pro: 'gemini-3.7-flash',
-    balanced: 'gemini-3.6-flash',
+    flagship: process.env.GEMINI_FLAGSHIP_MODEL || 'gemini-3.8-flash',
+    fast: process.env.GEMINI_FAST_MODEL || 'gemini-3.6-flash',
+    pro: process.env.GEMINI_PRO_MODEL || 'gemini-3.7-flash',
+    balanced: process.env.GEMINI_BALANCED_MODEL || 'gemini-3.6-flash',
   },
   anthropic: {
-    flagship: 'claude-opus-5',
-    fast: 'claude-haiku-4-5-20251001',
-    pro: 'claude-sonnet-5',
-    balanced: 'claude-sonnet-5',
+    flagship: process.env.ANTHROPIC_FLAGSHIP_MODEL || 'claude-opus-5',
+    fast: process.env.ANTHROPIC_FAST_MODEL || 'claude-haiku-4-5-20251001',
+    pro: process.env.ANTHROPIC_PRO_MODEL || 'claude-sonnet-5',
+    balanced: process.env.ANTHROPIC_BALANCED_MODEL || 'claude-sonnet-5',
   },
   openrouter: {
-    flagship: 'openai/gpt-5.2',
-    fast: 'openai/gpt-5-mini',
-    pro: 'openai/gpt-5.2',
-    balanced: 'openai/gpt-5',
+    flagship: process.env.OPENROUTER_FLAGSHIP_MODEL || 'openai/gpt-5.2',
+    fast: process.env.OPENROUTER_FAST_MODEL || 'openai/gpt-5-mini',
+    pro: process.env.OPENROUTER_PRO_MODEL || 'openai/gpt-5.2',
+    balanced: process.env.OPENROUTER_BALANCED_MODEL || 'openai/gpt-5',
   },
 };
 
 function json(res, status, body) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': 'http://localhost:5173',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
   });
@@ -38,7 +39,7 @@ function sseHeaders(res) {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive',
-    'Access-Control-Allow-Origin': 'http://localhost:5173',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
     'Access-Control-Allow-Headers': 'Content-Type',
   });
 }
@@ -65,6 +66,25 @@ function getKey(provider) {
 function modelFor(provider, tier) {
   return MODEL_MAP[provider]?.[tier] || MODEL_MAP[provider]?.balanced;
 }
+function decodeDataUrl(dataUrl) {
+  const match = /^data:([^;,]+)?;base64,(.*)$/s.exec(dataUrl || '');
+  return match ? { mediaType: match[1] || 'application/octet-stream', data: match[2] } : null;
+}
+
+function textAttachments(attachments = []) {
+  return attachments
+    .filter(a => !a.isImage && typeof a.dataUrl === 'string')
+    .map(a => `\n\n[Attached file: ${a.name}]\n${a.dataUrl.slice(0, 500000)}`)
+    .join('');
+}
+
+function lastUserIndex(messages = []) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return i;
+  }
+  return -1;
+}
+
 
 async function streamFetch(res, response, parser) {
   if (!response.ok) {
@@ -89,12 +109,24 @@ async function streamFetch(res, response, parser) {
 }
 
 async function callGemini(res, body, key, model) {
-  const contents = (body.messages || [])
+  const messages = body.messages || [];
+  const lastIndex = lastUserIndex(messages);
+  const attachments = body.attachments || [];
+  const contents = messages
     .filter(m => m.role === 'user' || m.role === 'assistant')
-    .map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content || '') }],
-    }));
+    .map((m, sourceIndex) => {
+      const originalIndex = messages.indexOf(m);
+      const parts = [{ text: String(m.content || '') }];
+      if (originalIndex === lastIndex) {
+        const extraText = textAttachments(attachments);
+        if (extraText) parts[0].text += extraText;
+        for (const attachment of attachments.filter(a => a.isImage)) {
+          const decoded = decodeDataUrl(attachment.dataUrl);
+          if (decoded) parts.push({ inlineData: { mimeType: decoded.mediaType, data: decoded.data } });
+        }
+      }
+      return { role: m.role === 'assistant' ? 'model' : 'user', parts };
+    });
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
@@ -102,9 +134,7 @@ async function callGemini(res, body, key, model) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
-        systemInstruction: body.systemPrompt
-          ? { parts: [{ text: body.systemPrompt }] }
-          : undefined,
+        systemInstruction: body.systemPrompt ? { parts: [{ text: body.systemPrompt }] } : undefined,
         contents,
       }),
     }
@@ -126,13 +156,20 @@ async function callAnthropic(res, body, key, model) {
     .filter(m => m.role === 'user' || m.role === 'assistant')
     .map(m => ({ role: m.role, content: String(m.content || '') }));
 
+  const attachments = body.attachments || [];
+  const last = messages[messages.length - 1];
+  if (last?.role === 'user') {
+    const content = [{ type: 'text', text: last.content + textAttachments(attachments) }];
+    for (const attachment of attachments.filter(a => a.isImage)) {
+      const decoded = decodeDataUrl(attachment.dataUrl);
+      if (decoded) content.push({ type: 'image', source: { type: 'base64', media_type: decoded.mediaType, data: decoded.data } });
+    }
+    last.content = content;
+  }
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-    },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model,
       max_tokens: 8192,
@@ -147,9 +184,7 @@ async function callAnthropic(res, body, key, model) {
       if (!line.startsWith('data:')) continue;
       try {
         const data = JSON.parse(line.slice(5).trim());
-        if (data.type === 'content_block_delta' && data.delta?.text) {
-          sendEvent(out, 'token', { text: data.delta.text });
-        }
+        if (data.type === 'content_block_delta' && data.delta?.text) sendEvent(out, 'token', { text: data.delta.text });
       } catch {}
     }
   });
@@ -158,24 +193,23 @@ async function callAnthropic(res, body, key, model) {
 async function callOpenRouter(res, body, key, model) {
   const messages = [
     ...(body.systemPrompt ? [{ role: 'system', content: body.systemPrompt }] : []),
-    ...(body.messages || []).map(m => ({
-      role: m.role,
-      content: String(m.content || ''),
-    })),
+    ...(body.messages || []).map(m => ({ role: m.role, content: String(m.content || '') })),
   ];
+
+  const attachments = body.attachments || [];
+  const last = messages[messages.length - 1];
+  if (last?.role === 'user') {
+    const content = [{ type: 'text', text: last.content + textAttachments(attachments) }];
+    for (const attachment of attachments.filter(a => a.isImage)) {
+      content.push({ type: 'image_url', image_url: { url: attachment.dataUrl } });
+    }
+    last.content = content;
+  }
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      'X-Title': 'AjayBot',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: true,
-    }),
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'AjayBot' },
+    body: JSON.stringify({ model, messages, stream: true }),
   });
 
   await streamFetch(res, response, (part, out) => {
@@ -195,7 +229,7 @@ async function callOpenRouter(res, body, key, model) {
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': 'http://localhost:5173',
+      'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     });
