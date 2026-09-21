@@ -148,3 +148,20 @@ Contributions are welcome! If you'd like to improve AjayBot:
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
 
 Developed with ❤️ by **[Ajaynath Balakrishnan](https://github.com/ajaynathbalakrishnan-2009)**.
+
+## Public Deployment
+
+AjayBot is configured as a single Node web service for public deployment. The included `render.yaml` builds the React frontend and serves it from the same Node backend.
+
+### Deploy on Render
+
+1. Push/pull the latest `main` branch so `render.yaml` is present.
+2. Open the Render Dashboard and choose **New → Blueprint**.
+3. Connect `ajaynathbalakrishnan-2009/ajaybot` and select the `main` branch.
+4. Review the service and click **Deploy Blueprint**.
+5. Enter your own `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and/or `ANTHROPIC_API_KEY` when prompted. Never put real keys in GitHub. Render supports secret environment variables specifically for this purpose.
+6. After deployment, Render gives the service a public `.onrender.com` URL that you can share.
+
+The production service uses Auto Fallback and ends at Ollama when an Ollama endpoint is available to the server. A normal cloud Render instance does **not** automatically have Ollama installed, so public users need cloud providers configured unless you separately host a secured Ollama server and set `OLLAMA_BASE_URL`.
+
+Render's free web services are suitable for testing/public demos, but they can spin down after 15 minutes of inactivity and wake up when a new request arrives.
