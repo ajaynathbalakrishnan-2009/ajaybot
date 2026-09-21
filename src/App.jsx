@@ -393,9 +393,6 @@ export default function App() {
           isArtifactPanelOpen={isArtifactPanelOpen}
           onToggleArtifactPanel={handleToggleArtifactPanel}
           userName={settings.userName}
-          onSignOut={async () => {
-            await supabase.auth.signOut();
-          }}
         />
 
         {/* Claude Artifacts Split Screen Panel */}
@@ -414,6 +411,9 @@ export default function App() {
         settings={settings}
         onSaveSettings={handleSaveSettings}
         onClearAllChats={handleClearAllChats}
+        onSignOut={async () => {
+          await supabase.auth.signOut();
+        }}
       />
     </div>
   );
