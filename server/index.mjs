@@ -56,6 +56,30 @@ function sendEvent(res, type, data) {
   res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+function sendToken(res, text) {
+  if (!text) return;
+  res.__ajaybotHasToken = true;
+  sendEvent(res, 'token', { text });
+}
+
+function providerOrder(preferred) {
+  if (preferred === 'ollama') return ['ollama'];
+  const cloud = ['openrouter', 'gemini', 'anthropic'].filter(p => p !== preferred);
+  return [preferred, ...cloud, 'ollama'].filter(Boolean);
+}
+
+function errorStatus(message) {
+  const match = String(message || '').match(/^(\d{3}):/);
+  return match ? Number(match[1]) : null;
+}
+
+function shouldFallback(message) {
+  const status = errorStatus(message);
+  return status === 401 || status === 402 || status === 408 || status === 409 || status === 429 ||
+    status === 500 || status === 502 || status === 503 || status === 504 ||
+    /ECONNREFUSED|ENOTFOUND|fetch failed|timed out|timeout/i.test(String(message || ''));
+}
+
 async function readBody(req) {
   let body = '';
   for await (const chunk of req) body += chunk;
@@ -172,7 +196,7 @@ async function callGemini(res, body, key, model) {
     try {
       const data = JSON.parse(line.slice(5).trim());
       const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
-      if (text) sendEvent(out, 'token', { text });
+      if (text) sendToken(out, text);
     } catch {}
   });
 }
@@ -272,7 +296,7 @@ async function callOllama(res, body, model) {
       if (!line.trim()) continue;
       try {
         const data = JSON.parse(line);
-        if (data.message?.content) sendEvent(res, 'token', { text: data.message.content });
+        if (data.message?.content) sendToken(res, data.message.content);
       } catch {}
     }
   }
@@ -280,7 +304,7 @@ async function callOllama(res, body, model) {
   if (buffer.trim()) {
     try {
       const data = JSON.parse(buffer);
-      if (data.message?.content) sendEvent(res, 'token', { text: data.message.content });
+      if (data.message?.content) sendToken(res, data.message.content);
     } catch {}
   }
 }
@@ -320,7 +344,7 @@ async function callOpenRouter(res, body, key, model) {
       try {
         const data = JSON.parse(raw);
         const text = data.choices?.[0]?.delta?.content;
-        if (text) sendEvent(out, 'token', { text });
+        if (text) sendToken(out, text);
       } catch {}
     }
   });
@@ -354,25 +378,51 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const body = await readBody(req);
-    const provider = ['gemini', 'anthropic', 'openrouter', 'ollama'].includes(body.provider)
+    const preferredProvider = ['gemini', 'anthropic', 'openrouter', 'ollama'].includes(body.provider)
       ? body.provider
       : null;
 
-    if (!provider) throw new Error('Select a real AI provider, Ollama Local, or use Demo Engine.');
-    const key = provider === 'ollama' ? true : getKey(provider);
-    if (!key) throw new Error(`${provider} is not configured correctly on the server. Put a real API key in .env, then restart npm run dev.`);
+    if (!preferredProvider) throw new Error('Select a real AI provider, Ollama Local, or use Demo Engine.');
 
-    const model = modelFor(provider, body.modelTier || 'balanced');
+    const order = providerOrder(preferredProvider);
     sseHeaders(res);
-    sendEvent(res, 'status', { provider, model });
+    let lastError = null;
 
-    if (provider === 'gemini') await callGemini(res, body, key, model);
-    if (provider === 'anthropic') await callAnthropic(res, body, key, model);
-    if (provider === 'openrouter') await callOpenRouter(res, body, key, model);
-    if (provider === 'ollama') await callOllama(res, body, model);
+    for (const provider of order) {
+      res.__ajaybotHasToken = false;
 
-    sendEvent(res, 'done', {});
-    res.end();
+      if (provider !== 'ollama' && !getKey(provider)) {
+        sendEvent(res, 'status', { provider, skipped: true, message: provider + ' is not configured; trying the next provider...' });
+        continue;
+      }
+
+      const model = modelFor(provider, body.modelTier || 'balanced');
+      sendEvent(res, 'status', { provider, model, message: 'Trying ' + provider + '...' });
+
+      try {
+        if (provider === 'gemini') await callGemini(res, body, getKey(provider), model);
+        if (provider === 'anthropic') await callAnthropic(res, body, getKey(provider), model);
+        if (provider === 'openrouter') await callOpenRouter(res, body, getKey(provider), model);
+        if (provider === 'ollama') await callOllama(res, body, model);
+
+        if (res.__ajaybotHasToken) {
+          sendEvent(res, 'done', { provider, model });
+          return res.end();
+        }
+
+        throw new Error(provider + ' returned no response content.');
+      } catch (error) {
+        lastError = error;
+        if (res.__ajaybotHasToken || !shouldFallback(error.message)) throw error;
+        sendEvent(res, 'status', {
+          provider,
+          failed: true,
+          message: provider + ' unavailable (' + error.message + '). Switching to the next provider...',
+        });
+      }
+    }
+
+    throw lastError || new Error('No AI provider is available.');
   } catch (error) {
     if (!res.headersSent) {
       return json(res, 500, { error: error.message || 'Server error' });
