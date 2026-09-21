@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import http from 'node:http';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -74,7 +75,16 @@ function decodeDataUrl(dataUrl) {
 function textAttachments(attachments = []) {
   return attachments
     .filter(a => !a.isImage && typeof a.dataUrl === 'string')
-    .map(a => `\n\n[Attached file: ${a.name}]\n${a.dataUrl.slice(0, 500000)}`)
+    .map(a => {
+      const decoded = decodeDataUrl(a.dataUrl);
+      if (!decoded) return `\n\n[Attached file: ${a.name}]\n(No readable data.)`;
+      try {
+        const text = Buffer.from(decoded.data, 'base64').toString('utf8');
+        return `\n\n[Attached file: ${a.name}]\n${text.slice(0, 500000)}`;
+      } catch {
+        return `\n\n[Attached file: ${a.name}]\n(Binary file; contents could not be decoded as text.)`;
+      }
+    })
     .join('');
 }
 
