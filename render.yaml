@@ -9,6 +9,14 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: ANTHROPIC_API_KEY
