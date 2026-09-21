@@ -327,6 +327,8 @@ export default function App() {
           onSelectModel={handleSelectModel}
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onNewChat={handleNewChat}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          isDemoMode={!settings.apiKey || settings.provider === 'simulated'}
           activeArtifact={activeArtifact}
           onOpenArtifact={handleOpenArtifact}
           isArtifactPanelOpen={isArtifactPanelOpen}

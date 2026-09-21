@@ -38,8 +38,7 @@ export function parseArtifacts(content) {
 
   const artifacts = [];
   const artifactRegex = /<antArtifact\s+identifier="([^"]+)"\s+type="([^"]+)"\s+title="([^"]+)">([\s\S]*?)<\/antArtifact>/gi;
-  
-  let cleanContent = content;
+
   let match;
 
   while ((match = artifactRegex.exec(content)) !== null) {
@@ -51,6 +50,11 @@ export function parseArtifacts(content) {
       code: code.trim(),
     });
   }
+
+  // Bug fix: this previously returned the untouched original content, which meant
+  // any caller relying on "text with the artifact block removed" silently got the
+  // raw block back instead. Strip the matched blocks out here.
+  const cleanContent = content.replace(artifactRegex, '').trim();
 
   return { cleanContent, artifacts };
 }
@@ -491,26 +495,42 @@ Modern engineering velocity demands reducing latency between conceptual design a
 ---
 *Would you like me to tailor this for a specific industry, adjust the tone, or expand on any section?*`;
   }
-  // 5. General Queries & Problem Solving
+  // 4b. Simple greetings deserve a short, direct reply — not a template
+  else if (/^(hi|hello|hey|yo|sup|good morning|good evening|good afternoon)[\s!.,]*$/.test(lower.trim())) {
+    thinking = `The user sent a short greeting. I'll respond briefly and naturally instead of forcing a structured breakdown.`;
+    const greetings = [
+      `Hey! What are you working on — want help with code, writing, math, or something else?`,
+      `Hi there! I can write code, build interactive artifacts, solve math, or help you draft something. What do you need?`,
+      `Hello! What can I help you with today?`
+    ];
+    responseText = greetings[Math.floor(Math.random() * greetings.length)];
+  }
+  // 4c. Explanation / definition style questions ("what is", "how does", "why", "explain", "difference between")
+  else if (/^(what is|what's|what are|how does|how do|why|explain|define|difference between|tell me about)\b/.test(lower.trim())) {
+    thinking = `The user is asking for an explanation of "${prompt}". I'll answer the actual question directly instead of a generic template, since this built-in engine doesn't have live model reasoning behind it.`;
+    responseText = `You asked: **"${prompt}"**
+
+I'm currently running on AjayBot's **built-in offline engine**, which is a lightweight demo responder — not a real language model. It can only recognize a handful of task categories (code, math, writing, calculators, games) well enough to hand back a matching template. Open-ended questions like this one are outside what it can genuinely reason about, so I don't want to hand you a made-up answer dressed up as a real explanation.
+
+To get real, accurate answers to questions like this, open **Settings → AI Provider** and add a free API key from one of:
+- **Google Gemini** (free tier, fastest to set up) — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+- **Anthropic Claude**
+- **OpenRouter** (access to many open models)
+
+Once a key is set, this exact question will get a real answer instead of this notice.`;
+  }
+  // 5. General Queries & Problem Solving — be honest about what this engine actually is
   else {
-    thinking = `The user asked: "${prompt}". I will synthesize a thorough, articulate, and actionable answer covering core principles, step-by-step execution, and practical examples.`;
-    responseText = `Thank you for your question. Here is a clear and actionable breakdown:
+    thinking = `The user asked: "${prompt}". This isn't a recognized task category (code/math/writing/calculator/game), so instead of forcing the generic template onto it, I'll acknowledge the built-in engine's limits and point them toward a real provider.`;
+    responseText = `I read your message as: **"${prompt}"**
 
-### 1. Key Concept & Context
-To solve this effectively, it helps to understand the underlying mechanics and identify both short-term optimizations and architectural foundations.
+Right now you're talking to AjayBot's **built-in offline engine** — a simple pattern-matcher with no real understanding, not a live AI model. It's good for a few specific demo tasks (writing a calculator, a game, a FastAPI backend, a Gaussian integral proof, a resume/essay draft) but it can't actually reason about arbitrary questions like this one, so I'm not going to pretend otherwise with a boilerplate answer.
 
-### 2. Recommended Approach
-- **Modular Design**: Break the problem down into independent, testable components.
-- **Iterative Validation**: Test key constraints early before scaling dependencies.
-- **Resilience**: Ensure fault-tolerance, clear error handling, and robust typing.
+**To get real answers**, open **Settings** (bottom-left) and add a free API key:
+- **Gemini** — free tier at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+- **Anthropic Claude** or **OpenRouter** — if you have a key already
 
-### 3. Practical Example / Next Steps
-Feel free to ask me to:
-- Generate complete working code in any programming language.
-- Build an interactive web preview artifact.
-- Formulate mathematical derivations or formal documentation.
-
-How would you like to proceed?`;
+Once connected, I'll respond with genuine reasoning instead of this notice. In the meantime, try one of the starter cards (code, calculator, game, math) to see the built-in engine's demo responses.`;
   }
 
   return { thinking, responseText };

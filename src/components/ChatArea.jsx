@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   Menu,
   Layout,
@@ -9,7 +9,9 @@ import {
   PenTool,
   Plus,
   Cpu,
-  Sparkles
+  Sparkles,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import MessageItem from './MessageItem';
 import ChatInput from './ChatInput';
@@ -29,9 +31,12 @@ export default function ChatArea({
   onOpenArtifact,
   isArtifactPanelOpen,
   onToggleArtifactPanel,
+  onOpenSettings,
+  isDemoMode = false,
   userName = 'Ajay'
 }) {
   const messagesEndRef = useRef(null);
+  const [dismissedBanner, setDismissedBanner] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,6 +124,32 @@ export default function ChatArea({
           </button>
         </div>
       </header>
+
+      {/* Demo Mode Banner — no real AI provider connected yet */}
+      {isDemoMode && !dismissedBanner && (
+        <div className="shrink-0 flex items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs sm:text-sm">
+          <div className="flex items-start sm:items-center gap-2">
+            <AlertTriangle className="w-4 h-4 mt-0.5 sm:mt-0 shrink-0" />
+            <span>
+              Running on the built-in <strong>demo engine</strong> (no AI provider connected) — replies are canned, not real reasoning.{' '}
+              <button
+                onClick={onOpenSettings}
+                className="underline font-semibold hover:text-amber-900 dark:hover:text-amber-200"
+              >
+                Add a free API key in Settings
+              </button>{' '}
+              for real answers.
+            </span>
+          </div>
+          <button
+            onClick={() => setDismissedBanner(true)}
+            className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-500/20 shrink-0"
+            title="Dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Main Chat Scroll Container */}
       <div className="flex-1 overflow-y-auto">
