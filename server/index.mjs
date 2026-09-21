@@ -1,7 +1,13 @@
 import 'dotenv/config';
 import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT || 8787);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DIST_DIR = path.resolve(__dirname, '../dist');
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
 
@@ -31,6 +37,59 @@ const MODEL_MAP = {
     balanced: process.env.OLLAMA_BALANCED_MODEL || 'qwen3:4b',
   },
 };
+
+
+function contentType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  return ({
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+  })[ext] || 'application/octet-stream';
+}
+
+function safeDistPath(urlPath) {
+  const clean = decodeURIComponent((urlPath || '/').split('?')[0]);
+  const relative = clean.replace(/^\/+/, '');
+  const candidate = path.resolve(DIST_DIR, relative);
+  return candidate.startsWith(DIST_DIR + path.sep) || candidate === DIST_DIR ? candidate : null;
+}
+
+function serveFile(res, filePath) {
+  try {
+    const data = fs.readFileSync(filePath);
+    res.writeHead(200, {
+      'Content-Type': contentType(filePath),
+      'Cache-Control': path.basename(filePath) === 'index.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+    });
+    res.end(data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function serveFrontend(req, res) {
+  if (!fs.existsSync(DIST_DIR)) {
+    return json(res, 503, { error: 'Frontend build not found. Run npm run build before starting the production server.' });
+  }
+
+  const requested = safeDistPath(req.url);
+  if (requested && fs.existsSync(requested) && fs.statSync(requested).isFile()) {
+    return serveFile(res, requested);
+  }
+
+  return serveFile(res, path.join(DIST_DIR, 'index.html'));
+}
 
 function json(res, status, body) {
   res.writeHead(status, {
@@ -372,6 +431,10 @@ const server = http.createServer(async (req, res) => {
         ollama: await fetch(OLLAMA_BASE_URL + '/api/version').then(r => r.ok).catch(() => false),
       },
     });
+  }
+
+  if (req.method === 'GET' && !req.url.startsWith('/api/')) {
+    return serveFrontend(req, res);
   }
 
   if (req.method !== 'POST' || req.url !== '/api/chat') {
