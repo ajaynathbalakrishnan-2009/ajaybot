@@ -32,8 +32,6 @@ export default function App() {
       .then(async ({ data }) => {
         if (!mounted) return;
         setAuthUser(data.user || null);
-        const { data: sessionData } = await supabase.auth.getSession();
-        window.__ajaybotSession = sessionData.session || null;
       })
       .finally(() => {
         if (mounted) setAuthLoading(false);
@@ -41,7 +39,6 @@ export default function App() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user || null);
-      window.__ajaybotSession = session || null;
     });
 
     return () => {
@@ -396,6 +393,9 @@ export default function App() {
           isArtifactPanelOpen={isArtifactPanelOpen}
           onToggleArtifactPanel={handleToggleArtifactPanel}
           userName={settings.userName}
+          onSignOut={async () => {
+            await supabase.auth.signOut();
+          }}
         />
 
         {/* Claude Artifacts Split Screen Panel */}
