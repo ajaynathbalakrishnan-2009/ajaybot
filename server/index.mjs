@@ -3,6 +3,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createClient } from '@supabase/supabase-js';
 
 const PORT = Number(process.env.PORT || 8787);
 const __filename = fileURLToPath(import.meta.url);
@@ -13,6 +14,13 @@ const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434'
 const OLLAMA_ENABLED = process.env.OLLAMA_ENABLED != null
   ? process.env.OLLAMA_ENABLED === 'true'
   : process.env.RENDER !== 'true';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || '';
+const supabase = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    })
+  : null;
 
 const MODEL_MAP = {
   gemini: {
@@ -142,6 +150,31 @@ function shouldFallback(message) {
   return status === 401 || status === 402 || status === 408 || status === 409 || status === 429 ||
     status === 500 || status === 502 || status === 503 || status === 504 ||
     /ECONNREFUSED|ENOTFOUND|fetch failed|timed out|timeout/i.test(String(message || ''));
+}
+
+
+async function requireUser(req) {
+  if (!supabase) {
+    throw new Error('Authentication is not configured on the server. Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.');
+  }
+
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+
+  if (!token) {
+    const error = new Error('Sign in to use AjayBot.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) {
+    const authError = new Error('Your AjayBot session is invalid or expired. Please sign in again.');
+    authError.statusCode = 401;
+    throw authError;
+  }
+
+  return data.user;
 }
 
 async function readBody(req) {
@@ -445,6 +478,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    const user = await requireUser(req);
     const body = await readBody(req);
     const preferredProvider = ['auto', 'gemini', 'anthropic', 'openrouter', 'ollama'].includes(body.provider)
       ? body.provider
@@ -493,7 +527,7 @@ const server = http.createServer(async (req, res) => {
     throw lastError || new Error('No AI provider is configured. Add a cloud API key on the server or enable Ollama locally.');
   } catch (error) {
     if (!res.headersSent) {
-      return json(res, 500, { error: error.message || 'Server error' });
+      return json(res, error.statusCode || 500, { error: error.message || 'Server error' });
     }
     sendEvent(res, 'error', { message: error.message || 'Provider request failed.' });
     res.end();
