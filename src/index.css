@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply font-sans m-0 p-0 overflow-x-hidden transition-colors duration-200;
+  }
+}
+
+/* Modern Sleek Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.45);
+}
+
+/* Modern Typography */
+.prose-custom {
+  line-height: 1.75;
+  font-size: 1rem;
+}
+
+.prose-custom p {
+  margin-bottom: 1rem;
+}
+
+.prose-custom p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-custom h1, .prose-custom h2, .prose-custom h3, .prose-custom h4 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: inherit;
+  margin-top: 1.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.prose-custom h1 {
+  font-size: 1.6rem;
+}
+.prose-custom h2 {
+  font-size: 1.35rem;
+}
+.prose-custom h3 {
+  font-size: 1.15rem;
+}
+
+.prose-custom ul, .prose-custom ol {
+  margin-top: 0.6rem;
+  margin-bottom: 1rem;
+  padding-left: 1.4rem;
+}
+
+.prose-custom ul {
+  list-style-type: disc;
+}
+
+.prose-custom ol {
+  list-style-type: decimal;
+}
+
+.prose-custom li {
+  margin-bottom: 0.35rem;
+}
+
+.prose-custom code:not(pre code) {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.86em;
+  padding: 0.15em 0.4em;
+  border-radius: 0.375rem;
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.dark .prose-custom code:not(pre code) {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+}
+
+.prose-custom blockquote {
+  border-left: 3px solid #6366f1;
+  padding-left: 1rem;
+  margin: 1.2rem 0;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+/* Shimmer animation for thinking */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.2) 50%, rgba(99, 102, 241, 0.05) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Glassmorphic backdrop utility */
+.glass-panel {
+  background: rgba(17, 23, 38, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Glowing typewriter cursor */
+.typing-cursor::after {
+  content: '▋';
+  display: inline-block;
+  color: #6366f1;
+  animation: blink 1s infinite;
+  margin-left: 3px;
+  font-size: 0.9em;
+  text-shadow: 0 0 8px rgba(99, 102, 241, 0.7);
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
