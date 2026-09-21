@@ -57,11 +57,18 @@ async function readBody(req) {
 }
 
 function getKey(provider) {
-  return {
+  const raw = {
     gemini: process.env.GEMINI_API_KEY,
     anthropic: process.env.ANTHROPIC_API_KEY,
     openrouter: process.env.OPENROUTER_API_KEY,
   }[provider];
+
+  if (typeof raw !== 'string') return null;
+
+  const key = raw.trim();
+  if (!key || /^YOUR_.*_HERE$/i.test(key)) return null;
+
+  return key;
 }
 
 function modelFor(provider, tier) {
@@ -220,7 +227,12 @@ async function callOpenRouter(res, body, key, model) {
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'AjayBot' },
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      'X-Title': 'AjayBot',
+      'HTTP-Referer': 'http://localhost:5173',
+    },
     body: JSON.stringify({ model, messages, stream: true }),
   });
 
@@ -271,7 +283,7 @@ const server = http.createServer(async (req, res) => {
 
     if (!provider) throw new Error('Select a real AI provider or use Demo Engine.');
     const key = getKey(provider);
-    if (!key) throw new Error(`${provider} is not configured on the server. Add its API key to .env.`);
+    if (!key) throw new Error(`${provider} is not configured correctly on the server. Put a real API key in .env, then restart npm run dev.`);
 
     const model = modelFor(provider, body.modelTier || 'balanced');
     sseHeaders(res);
