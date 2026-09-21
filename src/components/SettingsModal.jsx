@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Sliders, Trash2, Check, AlertCircle, Cpu, Globe, Zap, Key, Laptop } from 'lucide-react';
 
-export default function SettingsModal({ isOpen, onClose, settings, onSaveSettings, onClearAllChats }) {
+export default function SettingsModal({ isOpen, onClose, settings, onSaveSettings, onClearAllChats, onSignOut }) {
   const [formData, setFormData] = useState({ ...settings });
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -146,8 +146,16 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
           </div>
 
           {/* Clear Data */}
-          <div className="pt-2 border-t border-slate-200 dark:border-brand-border flex items-center justify-between">
-            <span className="text-xs text-slate-500">Reset conversation history</span>
+          <div className="pt-2 border-t border-slate-200 dark:border-brand-border flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+            >
+              Sign out
+            </button>
+            <div className="flex items-center justify-between flex-1">
+              <span className="text-xs text-slate-500">Reset conversation history</span>
             <button
               type="button"
               onClick={handleResetChats}
@@ -156,6 +164,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
               <Trash2 className="w-3.5 h-3.5" />
               <span>Clear all chats</span>
             </button>
+            </div>
           </div>
         </div>
 
