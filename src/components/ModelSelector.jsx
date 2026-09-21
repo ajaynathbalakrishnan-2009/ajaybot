@@ -1,6 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Sparkles, Zap, BookOpen, Check, Cpu } from 'lucide-react';
 
+const AVAILABLE_MODELS = [
+  { id: 'flagship', name: 'AjayBot Flagship', tagline: 'Highest-capability model configured by the selected provider', badge: 'Pro' },
+  { id: 'balanced', name: 'AjayBot Balanced', tagline: 'General-purpose quality and speed', badge: 'Default' },
+  { id: 'fast', name: 'AjayBot Fast', tagline: 'Low-latency everyday responses', badge: 'Fast' },
+  { id: 'pro', name: 'AjayBot Reasoning', tagline: 'Provider-configured deeper analysis model', badge: 'Reasoning' },
+];
+
 export default function ModelSelector({ currentModelId, onSelectModel }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
