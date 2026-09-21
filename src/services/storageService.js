@@ -8,12 +8,10 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_SETTINGS = {
-  model: 'ajaybot-3.7-ultra',
+  model: 'balanced',
   enableThinking: true,
-  thinkingBudget: 3, // seconds
-  systemPrompt: 'You are AjayBot, a thoughtful, articulate, and helpful AI assistant. You provide clear, well-structured, and deeply reasoned answers.',
-  apiKey: '',
-  provider: 'simulated', // 'simulated' | 'anthropic' | 'gemini'
+  systemPrompt: 'You are AjayBot, a thoughtful, articulate, and helpful AI assistant. Provide clear, accurate, well-structured answers.',
+  provider: 'simulated', // 'simulated' | 'gemini' | 'openrouter' | 'anthropic',
   userName: 'Ajay',
 };
 
@@ -80,9 +78,11 @@ export const getStoredSettings = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     const parsed = data ? { ...DEFAULT_SETTINGS, ...JSON.parse(data) } : DEFAULT_SETTINGS;
-    if (parsed.model?.includes('sonnet')) {
-      parsed.model = parsed.model.includes('3.7') ? 'ajaybot-3.7-ultra' : 'ajaybot-3.5-turbo';
+    if (!['flagship', 'fast', 'balanced', 'pro'].includes(parsed.model)) {
+      parsed.model = 'balanced';
     }
+    delete parsed.apiKey;
+    delete parsed.apiKeys;
     return parsed;
   } catch (e) {
     return DEFAULT_SETTINGS;
