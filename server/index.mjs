@@ -42,8 +42,8 @@ const MODEL_MAP = {
     balanced: process.env.OPENROUTER_BALANCED_MODEL || 'openrouter/free',
   },
   ollama: {
-    flagship: process.env.OLLAMA_FLAGSHIP_MODEL || 'qwen3:4b',
-    fast: process.env.OLLAMA_FAST_MODEL || 'qwen3:4b',
+    flagship: process.env.OLLAMA_FLAGSHIP_MODEL || 'gemma3:latest',
+    fast: process.env.OLLAMA_FAST_MODEL || 'llama3.2:latest',
     pro: process.env.OLLAMA_PRO_MODEL || 'qwen3:4b',
     balanced: process.env.OLLAMA_BALANCED_MODEL || 'qwen3:4b',
   },
