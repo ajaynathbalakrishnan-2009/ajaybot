@@ -261,7 +261,7 @@ async function callGemini(res, body, key, model) {
   const attachments = body.attachments || [];
   const contents = messages
     .filter(m => m.role === 'user' || m.role === 'assistant')
-    .map((m, sourceIndex) => {
+    .map((m) => {
       const originalIndex = messages.indexOf(m);
       const parts = [{ text: String(m.content || '') }];
       if (originalIndex === lastIndex) {
@@ -275,27 +275,60 @@ async function callGemini(res, body, key, model) {
       return { role: m.role === 'assistant' ? 'model' : 'user', parts };
     });
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        systemInstruction: body.systemPrompt ? { parts: [{ text: body.systemPrompt }] } : undefined,
-        contents,
-      }),
-    }
-  );
+  const candidates = [
+    model,
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
+  ].filter((value, index, all) => value && all.indexOf(value) === index);
 
-  await streamFetch(res, response, (part, out) => {
-    const line = part.split('\n').find(x => x.startsWith('data:'));
-    if (!line) return;
-    try {
-      const data = JSON.parse(line.slice(5).trim());
-      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
-      if (text) sendToken(out, text);
-    } catch {}
-  });
+  let lastError = null;
+
+  for (const candidateModel of candidates) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:streamGenerateContent?alt=sse`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({
+          systemInstruction: body.systemPrompt ? { parts: [{ text: body.systemPrompt }] } : undefined,
+          contents,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      const message = `Gemini ${response.status}: ${errorText.slice(0, 800)}`;
+      lastError = new Error(message);
+
+      // Temporary capacity/rate errors should try another stable Gemini model.
+      if (response.status === 429 || response.status === 503) {
+        continue;
+      }
+      throw lastError;
+    }
+
+    if (!response.body) {
+      lastError = new Error('Gemini returned no streaming body.');
+      continue;
+    }
+
+    await streamFetch(res, response, (part, out) => {
+      const line = part.split('\n').find(x => x.startsWith('data:'));
+      if (!line) return;
+      try {
+        const data = JSON.parse(line.slice(5).trim());
+        const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
+        if (text) sendToken(out, text);
+      } catch {}
+    });
+
+    if (res.__ajaybotHasToken) return;
+    lastError = new Error(`Gemini ${candidateModel} returned no response content.`);
+  }
+
+  throw lastError || new Error('Gemini did not return a response.');
 }
 
 async function callAnthropic(res, body, key, model) {
