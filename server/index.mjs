@@ -236,7 +236,7 @@ async function callAnthropic(res, body, key, model) {
       if (!line.startsWith('data:')) continue;
       try {
         const data = JSON.parse(line.slice(5).trim());
-        if (data.type === 'content_block_delta' && data.delta?.text) sendEvent(out, 'token', { text: data.delta.text });
+        if (data.type === 'content_block_delta' && data.delta?.text) sendToken(out, data.delta.text);
       } catch {}
     }
   });
