@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Sliders, Trash2, Check, AlertCircle, Cpu, Globe, Zap, Key } from 'lucide-react';
 
 export default function SettingsModal({ isOpen, onClose, settings, onSaveSettings, onClearAllChats }) {
   const [formData, setFormData] = useState({ ...settings });
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setFormData({ ...settings });
+  }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
