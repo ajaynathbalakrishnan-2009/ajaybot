@@ -73,6 +73,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
             </label>
             <div className="grid grid-cols-2 gap-2">
               {[
+                ['auto', 'Auto Fallback', 'Automatically uses available cloud providers and Ollama as the final fallback.', Sparkles],
                 ['simulated', 'Demo Engine', 'Local rule-based demo; no API key required.', Cpu],
                 ['gemini', 'Google Gemini', 'Uses the Gemini key configured on the AjayBot server.', Zap],
                 ['openrouter', 'OpenRouter', 'Uses the OpenRouter key configured on the AjayBot server.', Globe],
@@ -106,7 +107,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
               API keys are no longer stored in this browser.
             </p>
             <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-              Configure GEMINI_API_KEY, OPENROUTER_API_KEY, or ANTHROPIC_API_KEY in the server's .env file. Ollama Local does not need an API key; install Ollama and download a model, then restart AjayBot.
+              Auto Fallback uses any configured cloud provider and finishes with Ollama Local. Configure cloud API keys in .env; Ollama does not need an API key.
             </p>
           </div>
 
