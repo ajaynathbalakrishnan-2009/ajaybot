@@ -521,18 +521,20 @@ export async function streamChatResponse({
   onToken,
   onThinking,
   onArtifactFound,
-  signal
+  signal,
+  accessToken
 }) {
   if (settings?.provider === 'simulated' || !settings?.provider) {
     return streamDemoResponse({ messages, model, settings, attachments, onToken, onThinking, onArtifactFound, signal });
   }
 
   const headers = { 'Content-Type': 'application/json' };
-  if (supabase) {
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData?.session?.access_token) {
-      headers.Authorization = `Bearer ${sessionData.session.access_token}`;
-    }
+  const token = accessToken || (supabase ? (await supabase.auth.getSession()).data.session?.access_token : '');
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  if (!token) {
+    throw new Error('Your AjayBot login session is not available. Please sign in again.');
   }
 
   const response = await fetch('/api/chat', {
