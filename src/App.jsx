@@ -236,6 +236,21 @@ export default function App() {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('Streaming error:', err);
+        const message = err?.message || 'AjayBot could not reach the AI service.';
+        setChats(prev =>
+          prev.map(c =>
+            c.id === activeChatId
+              ? {
+                  ...c,
+                  messages: c.messages.map(m =>
+                    m.id === assistantMessageId
+                      ? { ...m, content: `**AjayBot error**\\n\\n${message}\\n\\nCheck the provider settings and make sure the backend is running.`, thinking: '' }
+                      : m
+                  )
+                }
+              : c
+          )
+        );
       }
     } finally {
       setIsStreaming(false);
