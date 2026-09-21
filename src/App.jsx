@@ -175,14 +175,14 @@ export default function App() {
       timestamp: new Date().toISOString(),
     };
 
+    // Update active chat with messages
+    const currentMessages = baseMessages ?? activeChat.messages ?? [];
+
     // Auto title chat from first prompt if title is default
     const isFirstUserMessage = currentMessages.length === 0;
     const updatedTitle = isFirstUserMessage
       ? prompt.slice(0, 36) + (prompt.length > 36 ? '...' : '')
       : activeChat.title;
-
-    // Update active chat with messages
-    const currentMessages = baseMessages ?? activeChat.messages ?? [];
     const updatedMessages = [...currentMessages, userMessage, initialAssistantMessage];
 
     setChats(prev =>
