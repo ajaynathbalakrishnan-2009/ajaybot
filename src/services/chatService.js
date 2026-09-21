@@ -536,6 +536,12 @@ export async function streamChatResponse({
       messages: messages.map(m => ({
         role: m.role,
         content: m.content || ''
+      })),
+      attachments: attachments.map(a => ({
+        name: a.name,
+        type: a.type,
+        isImage: Boolean(a.isImage),
+        dataUrl: a.dataUrl
       }))
     }),
     signal
