@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Sparkles, Zap, BookOpen, Check, Cpu } from 'lucide-react';
-import { AVAILABLE_MODELS } from '../services/chatService';
 
 export default function ModelSelector({ currentModelId, onSelectModel }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,9 +18,9 @@ export default function ModelSelector({ currentModelId, onSelectModel }) {
   }, []);
 
   const getModelIcon = (id) => {
-    if (id.includes('ultra')) return <Cpu className="w-4 h-4 text-brand-primary" />;
-    if (id.includes('flash')) return <Zap className="w-4 h-4 text-brand-cyan" />;
-    if (id.includes('max')) return <BookOpen className="w-4 h-4 text-brand-violet" />;
+    if (id === 'flagship') return <Cpu className="w-4 h-4 text-brand-primary" />;
+    if (id === 'fast') return <Zap className="w-4 h-4 text-brand-cyan" />;
+    if (id === 'pro') return <BookOpen className="w-4 h-4 text-brand-violet" />;
     return <Sparkles className="w-4 h-4 text-brand-primary" />;
   };
 
