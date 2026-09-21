@@ -1,35 +1,10 @@
 // Open Source Chat Service for AjayBot: Multi-task Intelligence Engine with Multi-Provider Support
 
 export const AVAILABLE_MODELS = [
-  {
-    id: 'ajaybot-3.7-ultra',
-    name: 'AjayBot 3.7 Ultra',
-    tagline: 'Flagship model with deep hybrid reasoning, code execution & live artifacts',
-    isDefault: true,
-    supportsThinking: true,
-    badge: 'Flagship'
-  },
-  {
-    id: 'ajaybot-3.5-turbo',
-    name: 'AjayBot 3.5 Turbo',
-    tagline: 'High intelligence & balanced speed for daily full-stack coding and writing',
-    supportsThinking: false,
-    badge: 'Fast'
-  },
-  {
-    id: 'ajaybot-3.5-flash',
-    name: 'AjayBot 3.5 Flash',
-    tagline: 'Lightweight, ultra-fast responses for quick questions and editing',
-    supportsThinking: false,
-    badge: 'Instant'
-  },
-  {
-    id: 'ajaybot-3-max',
-    name: 'AjayBot 3 Max',
-    tagline: 'Expansive analytical reasoning, mathematical proofs, and literary writing',
-    supportsThinking: true,
-    badge: 'Pro'
-  }
+  { id: 'flagship', name: 'AjayBot Flagship', tagline: 'Highest-capability model configured by the selected provider', isDefault: false, supportsThinking: true, badge: 'Pro' },
+  { id: 'balanced', name: 'AjayBot Balanced', tagline: 'General-purpose quality and speed', isDefault: true, supportsThinking: true, badge: 'Default' },
+  { id: 'fast', name: 'AjayBot Fast', tagline: 'Low-latency everyday responses', supportsThinking: false, badge: 'Fast' },
+  { id: 'pro', name: 'AjayBot Reasoning', tagline: 'Provider-configured deeper analysis model', supportsThinking: true, badge: 'Reasoning' }
 ];
 
 // Helper to extract artifact blocks from message content
@@ -536,10 +511,10 @@ Once connected, I'll respond with genuine reasoning instead of this notice. In t
   return { thinking, responseText };
 }
 
-// Live Streaming Engine with Multi-Provider Support
+// Live Streaming Engine. Real provider credentials stay on the server.
 export async function streamChatResponse({
   messages,
-  model = 'ajaybot-3.7-ultra',
+  model = 'balanced',
   settings,
   attachments = [],
   onToken,
@@ -547,289 +522,99 @@ export async function streamChatResponse({
   onArtifactFound,
   signal
 }) {
-  const lastUserMessage = messages[messages.length - 1];
-  const prompt = lastUserMessage.content || '';
-
-  // 1. Google Gemini API (Free tier from Google AI Studio)
-  if (settings?.apiKey && settings?.provider === 'gemini') {
-    try {
-      return await callGeminiAPI({
-        apiKey: settings.apiKey,
-        messages,
-        model,
-        systemPrompt: settings.systemPrompt,
-        onToken,
-        signal
-      });
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.warn('Gemini API failed, falling back to AjayBot engine:', err);
-      return streamProviderError({ provider: 'Gemini', error: err, onToken, onThinking, settings });
-    }
+  if (settings?.provider === 'simulated' || !settings?.provider) {
+    return streamDemoResponse({ messages, model, settings, attachments, onToken, onThinking, onArtifactFound, signal });
   }
 
-  // 2. Anthropic API
-  if (settings?.apiKey && settings?.provider === 'anthropic') {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider: settings.provider,
+      modelTier: model,
+      systemPrompt: settings.systemPrompt,
+      messages: messages.map(m => ({
+        role: m.role,
+        content: m.content || ''
+      }))
+    }),
+    signal
+  });
+
+  if (!response.ok) {
+    let message = 'AI backend request failed.';
     try {
-      return await callAnthropicAPI({
-        apiKey: settings.apiKey,
-        messages,
-        model,
-        systemPrompt: settings.systemPrompt,
-        onToken,
-        signal
-      });
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.warn('Anthropic API failed, falling back to AjayBot engine:', err);
-      return streamProviderError({ provider: 'Anthropic', error: err, onToken, onThinking, settings });
-    }
+      const data = await response.json();
+      message = data.error || message;
+    } catch {}
+    throw new Error(message);
   }
 
-  // 3. OpenRouter / OpenAI API
-  if (settings?.apiKey && settings?.provider === 'openrouter') {
-    try {
-      return await callOpenRouterAPI({
-        apiKey: settings.apiKey,
-        messages,
-        systemPrompt: settings.systemPrompt,
-        onToken,
-        signal
-      });
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.warn('OpenRouter API failed, falling back to AjayBot engine:', err);
-      return streamProviderError({ provider: 'OpenRouter', error: err, onToken, onThinking, settings });
+  if (!response.body) throw new Error('AI backend returned no stream.');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let accumulated = '';
+
+  const processEvent = (event) => {
+    const lines = event.split('\n');
+    const eventName = lines.find(line => line.startsWith('event:'))?.slice(6).trim();
+    const dataLine = lines.find(line => line.startsWith('data:'))?.slice(5).trim();
+    if (!dataLine) return;
+
+    let data;
+    try { data = JSON.parse(dataLine); } catch { return; }
+
+    if (eventName === 'token' && data.text) {
+      accumulated += data.text;
+      onToken(accumulated);
+      const { artifacts } = parseArtifacts(accumulated);
+      if (artifacts.length && onArtifactFound) {
+        onArtifactFound(artifacts[artifacts.length - 1]);
+      }
     }
+
+    if (eventName === 'status' && onThinking && settings?.enableThinking) {
+      onThinking(`Connected to ${data.provider} using ${data.model}. Generating a response...`);
+    }
+
+    if (eventName === 'error') {
+      throw new Error(data.message || 'Provider request failed.');
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() || '';
+    for (const event of events) processEvent(event);
   }
 
-  // 4. Built-in AjayBot Autonomous Engine (Universal, zero setup)
+  if (buffer.trim()) processEvent(buffer);
+}
+
+async function streamDemoResponse({ messages, model, settings, attachments, onToken, onThinking, onArtifactFound, signal }) {
+  const last = messages[messages.length - 1];
+  const prompt = last?.content || '';
   const { thinking, responseText } = generateSimulatedResponse(prompt, messages, model, settings, attachments);
 
-  // Stream Thinking if enabled
   if (settings?.enableThinking && thinking) {
-    let accumulatedThinking = '';
-    const thinkingChunks = thinking.split(' ');
-    for (let i = 0; i < thinkingChunks.length; i++) {
-      if (signal?.aborted) return;
-      accumulatedThinking += (i === 0 ? '' : ' ') + thinkingChunks[i];
-      onThinking(accumulatedThinking);
-      await new Promise(r => setTimeout(r, 22));
-    }
+    onThinking('Demo Engine: preparing a rule-based response...');
+    await new Promise(r => setTimeout(r, 80));
   }
 
-  // Stream Response Text token-by-token
-  let accumulatedText = '';
-  const words = responseText.split(' ');
-  for (let i = 0; i < words.length; i++) {
+  let accumulated = '';
+  for (const word of responseText.split(' ')) {
     if (signal?.aborted) return;
-    accumulatedText += (i === 0 ? '' : ' ') + words[i];
-    onToken(accumulatedText);
-
-    // Live Artifact Detection
-    const { artifacts } = parseArtifacts(accumulatedText);
-    if (artifacts.length > 0 && onArtifactFound) {
+    accumulated += (accumulated ? ' ' : '') + word;
+    onToken(accumulated);
+    const { artifacts } = parseArtifacts(accumulated);
+    if (artifacts.length && onArtifactFound) {
       onArtifactFound(artifacts[artifacts.length - 1]);
     }
-
-    const word = words[i];
-    const isPunctuation = word.endsWith('.') || word.endsWith('?') || word.endsWith('!');
-    const delay = isPunctuation ? 35 : 15;
-    await new Promise(r => setTimeout(r, delay));
-  }
-}
-
-// When a configured real provider (Gemini/Anthropic/OpenRouter) fails, show the
-// actual error in the chat instead of silently pretending nothing is configured.
-// This is what used to happen invisibly before — the app fell back to
-// generateSimulatedResponse() with zero indication that a real API call had
-// even been attempted, let alone why it failed.
-async function streamProviderError({ provider, error, onToken, onThinking, settings }) {
-  const message = `**${provider} request failed** — I couldn't reach the real model, so this isn't a generated answer.
-
-\`\`\`
-${(error && error.message) || String(error)}
-\`\`\`
-
-Common causes: an invalid or expired API key, the key pasted into the wrong provider slot in Settings, a network/CORS block, or the provider being temporarily down. Check Settings and try again.`;
-
-  if (settings?.enableThinking) {
-    onThinking(`The ${provider} API call failed with: ${(error && error.message) || String(error)}. I'll surface this error directly instead of silently falling back to the demo engine.`);
-    await new Promise(r => setTimeout(r, 30));
-  }
-
-  let acc = '';
-  const words = message.split(' ');
-  for (let i = 0; i < words.length; i++) {
-    acc += (i === 0 ? '' : ' ') + words[i];
-    onToken(acc);
-    await new Promise(r => setTimeout(r, 8));
-  }
-}
-
-// Gemini API Handler
-// Google's Gemini API key format changed in 2026: new keys (the "AQ." prefix,
-// Google calls these "authorization keys") authenticate via the x-goog-api-key
-// HTTP header, not the old ?key=... query parameter. The old query-param method
-// is being retired, so we send the key as a header here — this also works fine
-// with legacy "AIza..." keys.
-async function callGeminiAPI({ apiKey, messages, systemPrompt, onToken, signal }) {
-  const contents = messages
-    .filter(m => m.role === 'user' || m.role === 'assistant')
-    .map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      contents,
-      systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined
-    }),
-    signal
-  });
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Gemini API error ${response.status}: ${errText.slice(0, 300)}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n');
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        try {
-          const data = JSON.parse(line.slice(6));
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            fullText += text;
-            onToken(fullText);
-          }
-        } catch (e) {}
-      }
-    }
-  }
-}
-
-// Anthropic API Handler
-async function callAnthropicAPI({ apiKey, messages, model, systemPrompt, onToken, signal }) {
-  const formattedMessages = messages
-    .filter(m => m.role === 'user' || m.role === 'assistant')
-    .map(m => ({ role: m.role, content: m.content }));
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      // This is the actual header Anthropic requires to allow a browser to call
-      // the API directly (opt-in CORS support). The previous header name here
-      // ("dangerously-allow-browser") isn't a real Anthropic header, so every
-      // browser request was silently blocked by CORS and fell back to the demo engine.
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: model.includes('max') ? 'claude-3-opus-20240229' : 'claude-3-5-sonnet-20241022',
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: formattedMessages,
-      stream: true,
-    }),
-    signal
-  });
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Anthropic API error ${response.status}: ${errText.slice(0, 300)}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n');
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const jsonStr = line.replace('data: ', '').trim();
-        if (jsonStr === '[DONE]') break;
-        try {
-          const parsed = JSON.parse(jsonStr);
-          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-            fullText += parsed.delta.text;
-            onToken(fullText);
-          }
-        } catch (e) {}
-      }
-    }
-  }
-}
-
-// OpenRouter / OpenAI API Handler
-async function callOpenRouterAPI({ apiKey, messages, systemPrompt, onToken, signal }) {
-  const formatted = [
-    ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-    ...messages.map(m => ({ role: m.role, content: m.content }))
-  ];
-
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'openai/gpt-4o-mini',
-      messages: formatted,
-      stream: true,
-    }),
-    signal
-  });
-
-  if (!response.ok) {
-    throw new Error(`OpenRouter API error ${response.status}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n');
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === '[DONE]') break;
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const delta = parsed.choices?.[0]?.delta?.content;
-          if (delta) {
-            fullText += delta;
-            onToken(fullText);
-          }
-        } catch (e) {}
-      }
-    }
+    await new Promise(r => setTimeout(r, 12));
   }
 }
