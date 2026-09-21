@@ -78,12 +78,9 @@ export const getStoredSettings = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     const parsed = data ? { ...DEFAULT_SETTINGS, ...JSON.parse(data) } : DEFAULT_SETTINGS;
-    if (!['flagship', 'fast', 'balanced', 'pro'].includes(parsed.model)) {
-      parsed.model = 'balanced';
-    }
     delete parsed.apiKey;
     delete parsed.apiKeys;
-    if (!['auto', 'flagship', 'fast', 'balanced', 'pro'].includes(parsed.model)) {
+    if (!['flagship', 'fast', 'balanced', 'pro'].includes(parsed.model)) {
       parsed.model = 'balanced';
     }
     if (!['auto', 'simulated', 'gemini', 'openrouter', 'anthropic', 'ollama'].includes(parsed.provider)) {
