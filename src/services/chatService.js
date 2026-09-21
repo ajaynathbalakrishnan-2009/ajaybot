@@ -562,7 +562,9 @@ export async function streamChatResponse({
         signal
       });
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.warn('Gemini API failed, falling back to AjayBot engine:', err);
+      return streamProviderError({ provider: 'Gemini', error: err, onToken, onThinking, settings });
     }
   }
 
@@ -578,7 +580,9 @@ export async function streamChatResponse({
         signal
       });
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.warn('Anthropic API failed, falling back to AjayBot engine:', err);
+      return streamProviderError({ provider: 'Anthropic', error: err, onToken, onThinking, settings });
     }
   }
 
@@ -593,7 +597,9 @@ export async function streamChatResponse({
         signal
       });
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.warn('OpenRouter API failed, falling back to AjayBot engine:', err);
+      return streamProviderError({ provider: 'OpenRouter', error: err, onToken, onThinking, settings });
     }
   }
 
@@ -633,7 +639,40 @@ export async function streamChatResponse({
   }
 }
 
+// When a configured real provider (Gemini/Anthropic/OpenRouter) fails, show the
+// actual error in the chat instead of silently pretending nothing is configured.
+// This is what used to happen invisibly before — the app fell back to
+// generateSimulatedResponse() with zero indication that a real API call had
+// even been attempted, let alone why it failed.
+async function streamProviderError({ provider, error, onToken, onThinking, settings }) {
+  const message = `**${provider} request failed** — I couldn't reach the real model, so this isn't a generated answer.
+
+\`\`\`
+${(error && error.message) || String(error)}
+\`\`\`
+
+Common causes: an invalid or expired API key, the key pasted into the wrong provider slot in Settings, a network/CORS block, or the provider being temporarily down. Check Settings and try again.`;
+
+  if (settings?.enableThinking) {
+    onThinking(`The ${provider} API call failed with: ${(error && error.message) || String(error)}. I'll surface this error directly instead of silently falling back to the demo engine.`);
+    await new Promise(r => setTimeout(r, 30));
+  }
+
+  let acc = '';
+  const words = message.split(' ');
+  for (let i = 0; i < words.length; i++) {
+    acc += (i === 0 ? '' : ' ') + words[i];
+    onToken(acc);
+    await new Promise(r => setTimeout(r, 8));
+  }
+}
+
 // Gemini API Handler
+// Google's Gemini API key format changed in 2026: new keys (the "AQ." prefix,
+// Google calls these "authorization keys") authenticate via the x-goog-api-key
+// HTTP header, not the old ?key=... query parameter. The old query-param method
+// is being retired, so we send the key as a header here — this also works fine
+// with legacy "AIza..." keys.
 async function callGeminiAPI({ apiKey, messages, systemPrompt, onToken, signal }) {
   const contents = messages
     .filter(m => m.role === 'user' || m.role === 'assistant')
@@ -642,11 +681,14 @@ async function callGeminiAPI({ apiKey, messages, systemPrompt, onToken, signal }
       parts: [{ text: m.content }]
     }));
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`;
-  
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse`;
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body: JSON.stringify({
       contents,
       systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined
@@ -655,7 +697,8 @@ async function callGeminiAPI({ apiKey, messages, systemPrompt, onToken, signal }
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini API error ${response.status}`);
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Gemini API error ${response.status}: ${errText.slice(0, 300)}`);
   }
 
   const reader = response.body.getReader();
@@ -694,7 +737,11 @@ async function callAnthropicAPI({ apiKey, messages, model, systemPrompt, onToken
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
-      'dangerously-allow-browser': 'true'
+      // This is the actual header Anthropic requires to allow a browser to call
+      // the API directly (opt-in CORS support). The previous header name here
+      // ("dangerously-allow-browser") isn't a real Anthropic header, so every
+      // browser request was silently blocked by CORS and fell back to the demo engine.
+      'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
       model: model.includes('max') ? 'claude-3-opus-20240229' : 'claude-3-5-sonnet-20241022',
@@ -707,7 +754,8 @@ async function callAnthropicAPI({ apiKey, messages, model, systemPrompt, onToken
   });
 
   if (!response.ok) {
-    throw new Error(`Anthropic API error ${response.status}`);
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Anthropic API error ${response.status}: ${errText.slice(0, 300)}`);
   }
 
   const reader = response.body.getReader();
