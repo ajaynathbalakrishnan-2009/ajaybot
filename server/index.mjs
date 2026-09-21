@@ -3,6 +3,7 @@ import http from 'node:http';
 
 const PORT = Number(process.env.PORT || 8787);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
 
 const MODEL_MAP = {
   gemini: {
@@ -22,6 +23,12 @@ const MODEL_MAP = {
     fast: process.env.OPENROUTER_FAST_MODEL || 'openrouter/free',
     pro: process.env.OPENROUTER_PRO_MODEL || 'openrouter/free',
     balanced: process.env.OPENROUTER_BALANCED_MODEL || 'openrouter/free',
+  },
+  ollama: {
+    flagship: process.env.OLLAMA_FLAGSHIP_MODEL || 'qwen3:8b',
+    fast: process.env.OLLAMA_FAST_MODEL || 'llama3.2:3b',
+    pro: process.env.OLLAMA_PRO_MODEL || 'qwen3:8b',
+    balanced: process.env.OLLAMA_BALANCED_MODEL || 'qwen3:4b',
   },
 };
 
@@ -209,6 +216,75 @@ async function callAnthropic(res, body, key, model) {
   });
 }
 
+async function callOllama(res, body, model) {
+  const messages = [
+    ...(body.systemPrompt ? [{ role: 'system', content: String(body.systemPrompt) }] : []),
+    ...(body.messages || [])
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role, content: String(m.content || '') })),
+  ];
+
+  const attachments = body.attachments || [];
+  const last = messages[messages.length - 1];
+
+  if (last?.role === 'user') {
+    last.content += textAttachments(attachments);
+    const images = attachments
+      .filter(a => a.isImage && typeof a.dataUrl === 'string')
+      .map(a => decodeDataUrl(a.dataUrl))
+      .filter(Boolean)
+      .map(({ data }) => data);
+
+    if (images.length) last.images = images;
+  }
+
+  const response = await fetch(OLLAMA_BASE_URL + '/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: true,
+      think: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error('Ollama ' + response.status + ': ' + text.slice(0, 800));
+  }
+
+  if (!response.body) throw new Error('Ollama returned no streaming body.');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const data = JSON.parse(line);
+        if (data.message?.content) sendEvent(res, 'token', { text: data.message.content });
+      } catch {}
+    }
+  }
+
+  if (buffer.trim()) {
+    try {
+      const data = JSON.parse(buffer);
+      if (data.message?.content) sendEvent(res, 'token', { text: data.message.content });
+    } catch {}
+  }
+}
+
 async function callOpenRouter(res, body, key, model) {
   const messages = [
     ...(body.systemPrompt ? [{ role: 'system', content: body.systemPrompt }] : []),
@@ -267,6 +343,7 @@ const server = http.createServer(async (req, res) => {
         gemini: Boolean(process.env.GEMINI_API_KEY),
         anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
         openrouter: Boolean(process.env.OPENROUTER_API_KEY),
+        ollama: await fetch(OLLAMA_BASE_URL + '/api/version').then(r => r.ok).catch(() => false),
       },
     });
   }
@@ -277,12 +354,12 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const body = await readBody(req);
-    const provider = ['gemini', 'anthropic', 'openrouter'].includes(body.provider)
+    const provider = ['gemini', 'anthropic', 'openrouter', 'ollama'].includes(body.provider)
       ? body.provider
       : null;
 
-    if (!provider) throw new Error('Select a real AI provider or use Demo Engine.');
-    const key = getKey(provider);
+    if (!provider) throw new Error('Select a real AI provider, Ollama Local, or use Demo Engine.');
+    const key = provider === 'ollama' ? true : getKey(provider);
     if (!key) throw new Error(`${provider} is not configured correctly on the server. Put a real API key in .env, then restart npm run dev.`);
 
     const model = modelFor(provider, body.modelTier || 'balanced');
@@ -292,6 +369,7 @@ const server = http.createServer(async (req, res) => {
     if (provider === 'gemini') await callGemini(res, body, key, model);
     if (provider === 'anthropic') await callAnthropic(res, body, key, model);
     if (provider === 'openrouter') await callOpenRouter(res, body, key, model);
+    if (provider === 'ollama') await callOllama(res, body, model);
 
     sendEvent(res, 'done', {});
     res.end();
