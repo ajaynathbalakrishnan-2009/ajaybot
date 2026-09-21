@@ -165,3 +165,19 @@ AjayBot is configured as a single Node web service for public deployment. The in
 The production service uses Auto Fallback and ends at Ollama when an Ollama endpoint is available to the server. A normal cloud Render instance does **not** automatically have Ollama installed, so public users need cloud providers configured unless you separately host a secured Ollama server and set `OLLAMA_BASE_URL`.
 
 Render's free web services are suitable for testing/public demos, but they can spin down after 15 minutes of inactivity and wake up when a new request arrives.
+
+
+## User Accounts & Automatic Access
+
+AjayBot supports global user accounts with Supabase Auth. Users sign up or sign in with email/password, and Supabase automatically manages their authenticated session. The browser uses only the Supabase URL and publishable key; provider API secrets remain server-side. citeturn569636search2turn569636search0turn569636search4
+
+To enable authentication, configure these variables in local `.env` and in the deployment environment:
+
+```text
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+```
+
+The AjayBot backend verifies the signed-in user's access token before allowing AI requests. This is an AjayBot user session credential; it does not create a new Gemini or OpenRouter API key for each user. Those providers do not delegate your account's secret key creation to AjayBot.
