@@ -36,10 +36,10 @@ services:
       - key: OLLAMA_BASE_URL
         value: http://127.0.0.1:11434
       - key: OLLAMA_FLAGSHIP_MODEL
-        value: qwen3:4b
+        value: value: gemma3:latest
       - key: OLLAMA_BALANCED_MODEL
-        value: qwen3:4b
+        value: value: qwen3:4b
       - key: OLLAMA_FAST_MODEL
-        value: qwen3:4b
+        value: value: llama3.2:latest
       - key: OLLAMA_PRO_MODEL
-        value: qwen3:8b
+        value: value: qwen3:4b
