@@ -24,7 +24,7 @@ const supabase = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
 
 const MODEL_MAP = {
   gemini: {
-    flagship: process.env.GEMINI_FLAGSHIP_MODEL || 'gemini-3.8-flash',
+    flagship: process.env.GEMINI_FLAGSHIP_MODEL || 'gemini-3.7-flash',
     fast: process.env.GEMINI_FAST_MODEL || 'gemini-3.6-flash',
     pro: process.env.GEMINI_PRO_MODEL || 'gemini-3.7-flash',
     balanced: process.env.GEMINI_BALANCED_MODEL || 'gemini-3.6-flash',
