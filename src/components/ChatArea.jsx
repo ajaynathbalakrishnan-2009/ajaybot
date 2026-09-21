@@ -136,7 +136,7 @@ export default function ChatArea({
                 onClick={onOpenSettings}
                 className="underline font-semibold hover:text-amber-900 dark:hover:text-amber-200"
               >
-                Add a free API key in Settings
+                Configure an AI provider on the AjayBot server
               </button>{' '}
               for real answers.
             </span>
