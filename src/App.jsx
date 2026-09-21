@@ -29,8 +29,11 @@ export default function App() {
 
     let mounted = true;
     supabase.auth.getUser()
-      .then(({ data }) => {
-        if (mounted) setAuthUser(data.user || null);
+      .then(async ({ data }) => {
+        if (!mounted) return;
+        setAuthUser(data.user || null);
+        const { data: sessionData } = await supabase.auth.getSession();
+        window.__ajaybotSession = sessionData.session || null;
       })
       .finally(() => {
         if (mounted) setAuthLoading(false);
@@ -38,6 +41,7 @@ export default function App() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user || null);
+      window.__ajaybotSession = session || null;
     });
 
     return () => {
