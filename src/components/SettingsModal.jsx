@@ -113,7 +113,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSaveSetting
           <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 dark:border-brand-border bg-slate-50/50 dark:bg-slate-900/40">
             <div>
               <span className="text-xs font-semibold text-slate-900 dark:text-white block">
-                Deep Reasoning Process
+                Analysis Status
               </span>
               <span className="text-[11px] text-slate-400">
                 Show a concise analysis/status summary instead of private chain-of-thought.
