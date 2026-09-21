@@ -1,4 +1,5 @@
 // Open Source Chat Service for AjayBot: Multi-task Intelligence Engine with Multi-Provider Support
+import { supabase } from '../lib/supabase';
 
 export const AVAILABLE_MODELS = [
   { id: 'flagship', name: 'AjayBot Flagship', tagline: 'Highest-capability model configured by the selected provider', isDefault: false, supportsThinking: true, badge: 'Pro' },
@@ -526,10 +527,12 @@ export async function streamChatResponse({
     return streamDemoResponse({ messages, model, settings, attachments, onToken, onThinking, onArtifactFound, signal });
   }
 
-  const authSession = window.__ajaybotSession || null;
   const headers = { 'Content-Type': 'application/json' };
-  if (authSession?.access_token) {
-    headers.Authorization = `Bearer ${authSession.access_token}`;
+  if (supabase) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session?.access_token) {
+      headers.Authorization = `Bearer ${sessionData.session.access_token}`;
+    }
   }
 
   const response = await fetch('/api/chat', {
