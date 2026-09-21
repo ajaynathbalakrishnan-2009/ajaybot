@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: ajaybot
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGIN
+        value: "*"
+      - key: OPENROUTER_FLAGSHIP_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_BALANCED_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_FAST_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_PRO_MODEL
+        value: openrouter/free
+      - key: OLLAMA_BASE_URL
+        value: http://127.0.0.1:11434
+      - key: OLLAMA_FLAGSHIP_MODEL
+        value: qwen3:8b
+      - key: OLLAMA_BALANCED_MODEL
+        value: qwen3:4b
+      - key: OLLAMA_FAST_MODEL
+        value: llama3.2:3b
+      - key: OLLAMA_PRO_MODEL
+        value: qwen3:8b
