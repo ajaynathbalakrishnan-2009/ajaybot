@@ -18,10 +18,10 @@ const MODEL_MAP = {
     balanced: process.env.ANTHROPIC_BALANCED_MODEL || 'claude-sonnet-5',
   },
   openrouter: {
-    flagship: process.env.OPENROUTER_FLAGSHIP_MODEL || 'openai/gpt-5.2',
-    fast: process.env.OPENROUTER_FAST_MODEL || 'openai/gpt-5-mini',
-    pro: process.env.OPENROUTER_PRO_MODEL || 'openai/gpt-5.2',
-    balanced: process.env.OPENROUTER_BALANCED_MODEL || 'openai/gpt-5',
+    flagship: process.env.OPENROUTER_FLAGSHIP_MODEL || 'openrouter/free',
+    fast: process.env.OPENROUTER_FAST_MODEL || 'openrouter/free',
+    pro: process.env.OPENROUTER_PRO_MODEL || 'openrouter/free',
+    balanced: process.env.OPENROUTER_BALANCED_MODEL || 'openrouter/free',
   },
 };
 
