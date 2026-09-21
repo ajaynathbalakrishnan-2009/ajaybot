@@ -23,6 +23,8 @@ services:
         value: openrouter/free
       - key: OPENROUTER_PRO_MODEL
         value: openrouter/free
+      - key: OLLAMA_ENABLED
+        value: "false"
       - key: OLLAMA_BASE_URL
         value: http://127.0.0.1:11434
       - key: OLLAMA_FLAGSHIP_MODEL
