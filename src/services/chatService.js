@@ -526,9 +526,15 @@ export async function streamChatResponse({
     return streamDemoResponse({ messages, model, settings, attachments, onToken, onThinking, onArtifactFound, signal });
   }
 
+  const authSession = window.__ajaybotSession || null;
+  const headers = { 'Content-Type': 'application/json' };
+  if (authSession?.access_token) {
+    headers.Authorization = `Bearer ${authSession.access_token}`;
+  }
+
   const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       provider: settings.provider,
       modelTier: model,
