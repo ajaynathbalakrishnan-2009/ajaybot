@@ -63,8 +63,10 @@ function sendToken(res, text) {
 }
 
 function providerOrder(preferred) {
+  const fallbackOrder = ['openrouter', 'gemini', 'anthropic', 'ollama'];
+  if (preferred === 'auto') return fallbackOrder;
   if (preferred === 'ollama') return ['ollama'];
-  const cloud = ['openrouter', 'gemini', 'anthropic'].filter(p => p !== preferred);
+  const cloud = fallbackOrder.filter(p => p !== 'ollama' && p !== preferred);
   return [preferred, ...cloud, 'ollama'].filter(Boolean);
 }
 
@@ -378,11 +380,11 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const body = await readBody(req);
-    const preferredProvider = ['gemini', 'anthropic', 'openrouter', 'ollama'].includes(body.provider)
+    const preferredProvider = ['auto', 'gemini', 'anthropic', 'openrouter', 'ollama'].includes(body.provider)
       ? body.provider
       : null;
 
-    if (!preferredProvider) throw new Error('Select a real AI provider, Ollama Local, or use Demo Engine.');
+    if (!preferredProvider) throw new Error('Select Auto Fallback, a real AI provider, Ollama Local, or use Demo Engine.');
 
     const order = providerOrder(preferredProvider);
     sseHeaders(res);
