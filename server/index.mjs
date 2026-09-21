@@ -10,6 +10,9 @@ const __dirname = path.dirname(__filename);
 const DIST_DIR = path.resolve(__dirname, '../dist');
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
+const OLLAMA_ENABLED = process.env.OLLAMA_ENABLED != null
+  ? process.env.OLLAMA_ENABLED === 'true'
+  : process.env.RENDER !== 'true';
 
 const MODEL_MAP = {
   gemini: {
@@ -123,8 +126,8 @@ function sendToken(res, text) {
 
 function providerOrder(preferred) {
   const fallbackOrder = ['openrouter', 'gemini', 'anthropic', 'ollama'];
-  if (preferred === 'auto') return fallbackOrder;
-  if (preferred === 'ollama') return ['ollama'];
+  if (preferred === 'auto') return OLLAMA_ENABLED ? fallbackOrder : fallbackOrder.filter(p => p !== 'ollama');
+  if (preferred === 'ollama') return OLLAMA_ENABLED ? ['ollama'] : [];
   const cloud = fallbackOrder.filter(p => p !== 'ollama' && p !== preferred);
   return [preferred, ...cloud, 'ollama'].filter(Boolean);
 }
@@ -428,7 +431,7 @@ const server = http.createServer(async (req, res) => {
         gemini: Boolean(process.env.GEMINI_API_KEY),
         anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
         openrouter: Boolean(process.env.OPENROUTER_API_KEY),
-        ollama: await fetch(OLLAMA_BASE_URL + '/api/version').then(r => r.ok).catch(() => false),
+        ollama: OLLAMA_ENABLED && await fetch(OLLAMA_BASE_URL + '/api/version').then(r => r.ok).catch(() => false),
       },
     });
   }
@@ -487,7 +490,7 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    throw lastError || new Error('No AI provider is available.');
+    throw lastError || new Error('No AI provider is configured. Add a cloud API key on the server or enable Ollama locally.');
   } catch (error) {
     if (!res.headersSent) {
       return json(res, 500, { error: error.message || 'Server error' });
