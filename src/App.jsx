@@ -343,7 +343,7 @@ export default function App() {
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onNewChat={handleNewChat}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          isDemoMode={!settings.apiKey || settings.provider === 'simulated'}
+          isDemoMode={settings.provider === 'simulated'}
           activeArtifact={activeArtifact}
           onOpenArtifact={handleOpenArtifact}
           isArtifactPanelOpen={isArtifactPanelOpen}
