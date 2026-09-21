@@ -152,7 +152,7 @@ export default function App() {
   };
 
   // Chat Execution
-  const handleSendMessage = async (prompt, attachments = []) => {
+  const handleSendMessage = async (prompt, attachments = [], baseMessages = null) => {
     if (!prompt.trim() && attachments.length === 0) return;
 
     const userMessageId = 'msg-' + Date.now();
@@ -176,13 +176,14 @@ export default function App() {
     };
 
     // Auto title chat from first prompt if title is default
-    const isFirstUserMessage = (!activeChat.messages || activeChat.messages.length === 0);
+    const isFirstUserMessage = currentMessages.length === 0;
     const updatedTitle = isFirstUserMessage
       ? prompt.slice(0, 36) + (prompt.length > 36 ? '...' : '')
       : activeChat.title;
 
     // Update active chat with messages
-    const updatedMessages = [...(activeChat.messages || []), userMessage, initialAssistantMessage];
+    const currentMessages = baseMessages ?? activeChat.messages ?? [];
+    const updatedMessages = [...currentMessages, userMessage, initialAssistantMessage];
 
     setChats(prev =>
       prev.map(c =>
@@ -280,7 +281,7 @@ export default function App() {
           c.id === activeChatId ? { ...c, messages: trimmed } : c
         )
       );
-      handleSendMessage(userPrompt, attachments);
+      handleSendMessage(userPrompt, attachments, trimmed);
     }
   };
 
@@ -295,7 +296,7 @@ export default function App() {
           c.id === activeChatId ? { ...c, messages: trimmed } : c
         )
       );
-      handleSendMessage(newContent, []);
+      handleSendMessage(newContent, [], trimmed);
     }
   };
 
