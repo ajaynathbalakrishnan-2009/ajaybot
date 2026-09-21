@@ -1,10 +1,3 @@
-const AVAILABLE_MODELS = [
-  { id: 'flagship', name: 'AjayBot Flagship', tagline: 'Highest-capability model configured by your selected provider', badge: 'Pro' },
-  { id: 'balanced', name: 'AjayBot Balanced', tagline: 'Best general-purpose balance of quality and speed', badge: 'Default' },
-  { id: 'fast', name: 'AjayBot Fast', tagline: 'Lower-latency model for quick everyday tasks', badge: 'Fast' },
-  { id: 'pro', name: 'AjayBot Reasoning', tagline: 'Provider model configured for deeper analysis', badge: 'Reasoning' },
-];
-
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Sparkles, Zap, BookOpen, Check, Cpu } from 'lucide-react';
 
