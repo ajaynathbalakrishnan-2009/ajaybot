@@ -11,7 +11,7 @@ const DEFAULT_SETTINGS = {
   model: 'balanced',
   enableThinking: true,
   systemPrompt: 'You are AjayBot, a thoughtful, articulate, and helpful AI assistant. Provide clear, accurate, well-structured answers.',
-  provider: 'simulated', // 'simulated' | 'gemini' | 'openrouter' | 'anthropic',
+  provider: 'auto', // 'auto' | 'simulated' | 'gemini' | 'openrouter' | 'anthropic' | 'ollama',
   userName: 'Ajay',
 };
 
@@ -83,6 +83,12 @@ export const getStoredSettings = () => {
     }
     delete parsed.apiKey;
     delete parsed.apiKeys;
+    if (!['auto', 'flagship', 'fast', 'balanced', 'pro'].includes(parsed.model)) {
+      parsed.model = 'balanced';
+    }
+    if (!['auto', 'simulated', 'gemini', 'openrouter', 'anthropic', 'ollama'].includes(parsed.provider)) {
+      parsed.provider = 'auto';
+    }
     return parsed;
   } catch (e) {
     return DEFAULT_SETTINGS;
