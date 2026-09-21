@@ -17,7 +17,7 @@ import { streamChatResponse, parseArtifacts } from './services/chatService';
 import AuthScreen from './components/AuthScreen';
 import { supabase, isAuthConfigured } from './lib/supabase';
 
-function AuthenticatedApp() {
+function AuthenticatedApp({ authSession }) {
   // State
   const [chats, setChats] = useState(getStoredChats);
   const [activeChatId, setActiveChatId] = useState(getActiveChatId);
@@ -157,6 +157,15 @@ function AuthenticatedApp() {
   const handleSendMessage = async (prompt, attachments = [], baseMessages = null) => {
     if (!prompt.trim() && attachments.length === 0) return;
 
+    // Always read the latest Supabase session when a message is sent.
+    // This avoids a race where the authenticated UI is visible before React's
+    // session state has propagated into the chat component.
+    let currentAccessToken = authSession?.access_token || '';
+    if (!currentAccessToken && supabase) {
+      const { data } = await supabase.auth.getSession();
+      currentAccessToken = data.session?.access_token || '';
+    }
+
     const userMessageId = 'msg-' + Date.now();
     const assistantMessageId = 'msg-' + (Date.now() + 1);
 
@@ -204,7 +213,7 @@ function AuthenticatedApp() {
         model: settings.model,
         settings,
         attachments,
-        accessToken: authSession?.access_token,
+        accessToken: currentAccessToken,
         signal: abortControllerRef.current.signal,
         onThinking: (thinkingTokens) => {
           setChats(prev =>
@@ -420,5 +429,5 @@ export default function App() {
     return <AuthScreen />;
   }
 
-  return <AuthenticatedApp />;
+  return <AuthenticatedApp authSession={authSession} />;
 }
