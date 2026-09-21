@@ -6,7 +6,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8.svg)](https://tailwindcss.com/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/ajaynathbalakrishnan-2009/ajaybot/pulls)
 
-**AjayBot** is an open-source, multi-task AI companion and developer workspace engineered with deep reasoning, live interactive **Artifacts**, multi-model intelligence, and multi-provider connectivity (Autonomous Engine, Google Gemini, OpenRouter, and Anthropic).
+**AjayBot** is an open-source, multi-task AI companion and developer workspace engineered with interactive **Artifacts**, provider-aware model routing, a local demo engine, and secure server-side connectivity to Google Gemini, OpenRouter, and Anthropic.
 
 Styled in a sleek **Midnight Obsidian & Electric Indigo** palette with subtle glassmorphic surfaces.
 
@@ -21,15 +21,17 @@ Styled in a sleek **Midnight Obsidian & Electric Indigo** palette with subtle gl
 - **Strategic Writing & Analysis**: Drafts executive project briefs, resumes, technical specifications, and creative literature.
 - **Attachment & Code Analysis**: Upload and analyze source code files, documents, data CSVs, and images directly in chat.
 
-### 2. 🧠 Transparent Reasoning ("Thinking Process")
-- Follow step-by-step chain-of-thought reasoning before answers with collapsible inspection cards, timing metrics, and verification steps.
+### 2. 🧠 Analysis Status
+- Shows a concise generation status/analysis summary rather than exposing private chain-of-thought.
+- Provider and model status can be surfaced while a response streams.
 
 ### 3. 🔌 Multi-Provider Connectivity
 Configure your preferred AI backend seamlessly via Settings:
-- **Autonomous Built-in Engine**: Works offline out-of-the-box with zero configuration or API keys.
-- **Google Gemini API**: Connect free-tier keys directly from Google AI Studio (`gemini-1.5-flash` / `gemini-2.0-flash`).
-- **OpenRouter / OpenAI**: Plug in any open-weights model (Llama-3, Mistral, Qwen) or GPT-4o.
-- **Anthropic API**: Direct streaming connection with custom API keys.
+- **Demo Engine**: A local rule-based demo mode for artifacts and sample workflows.
+- **Google Gemini**: Server-side streaming using configurable current Gemini model IDs.
+- **OpenRouter**: Server-side streaming using configurable model IDs.
+- **Anthropic**: Server-side streaming using configurable Claude model IDs.
+- **No API keys in browser storage**: Provider secrets are read only by the backend from environment variables.
 
 ### 4. 🎨 Distinct Modern Aesthetic
 - Sleek **Midnight Obsidian & Electric Indigo/Cyan** theme.
@@ -38,40 +40,10 @@ Configure your preferred AI backend seamlessly via Settings:
 - Instant Light / Dark mode toggle.
 
 ### 5. 🔒 Local Privacy & Session Management
-- All conversations and settings are stored locally in your browser (`localStorage`).
-- Zero tracking, zero telemetry.
-- Instant search, chat renaming, inline message editing, and keyboard shortcuts (`Ctrl + K`).
-
----
-
-## 🏗️ Project Architecture
-
-```
-ajaybot/
-├── index.html                  # HTML entry with Plus Jakarta Sans & JetBrains Mono
-├── package.json                # Dependencies & build scripts
-├── vite.config.js              # Vite bundler configuration
-├── tailwind.config.js          # Midnight Obsidian & Electric Indigo tokens
-├── LICENSE                     # MIT Open Source License
-└── src/
-    ├── main.jsx                # React root mount
-    ├── App.jsx                 # Core workspace layout & streaming orchestrator
-    ├── index.css               # Glassmorphism, typography & scrollbars
-    ├── components/
-    │   ├── Sidebar.jsx         # Conversation history, search, and user profile
-    │   ├── ChatArea.jsx        # Navigation bar, task capability cards & stream
-    │   ├── MessageItem.jsx     # User & Assistant messages, avatars, actions
-    │   ├── ThinkingBlock.jsx   # Collapsible chain-of-thought reasoning
-    │   ├── ArtifactPanel.jsx   # Split-screen interactive preview & code viewer
-    │   ├── ChatInput.jsx       # Floating auto-growing input with attachments
-    │   ├── ModelSelector.jsx   # Model tier switcher (Ultra, Turbo, Flash, Max)
-    │   └── SettingsModal.jsx   # Multi-provider configuration & persona controls
-    ├── services/
-    │   ├── chatService.js      # Multi-task AI engine & API streaming client
-    │   └── storageService.js   # LocalStorage synchronization
-    └── utils/
-        └── markdown.jsx        # Markdown parser with interactive Artifact cards
-```
+- Conversations, UI settings, and theme are stored locally in the browser.
+- Provider API keys are **not** stored in localStorage; they belong in the server environment.
+- No analytics or telemetry is included by default.
+- Chat renaming, inline message editing, and keyboard shortcuts are supported.
 
 ---
 
@@ -94,13 +66,43 @@ ajaybot/
    npm install
    ```
 
-3. **Start the local development server**:
+3. **Create your local environment file**:
+   ```bash
+   copy .env.example .env
+   ```
+   Then add at least one provider key to `.env`.
+
+4. **Start both the backend and frontend**:
    ```bash
    npm run dev
    ```
 
-4. **Open in browser**:
-   Navigate to [http://localhost:5173](http://localhost:5173).
+5. **Open in browser**:
+   Navigate to [http://localhost:5173](http://localhost:5173). The backend runs on `http://localhost:8787`.
+
+---
+
+## 🔐 Provider Configuration
+
+The browser never receives provider API keys. Configure one or more of these in `.env`:
+
+```env
+GEMINI_API_KEY=
+ANTHROPIC_API_KEY=
+OPENROUTER_API_KEY=
+```
+
+Optional model overrides are documented in `.env.example`. Current provider model IDs should be kept configurable because providers can change availability.
+
+### Health check
+
+With the backend running, open:
+
+```
+http://localhost:8787/api/health
+```
+
+It reports which provider keys are configured without returning their values.
 
 ---
 
