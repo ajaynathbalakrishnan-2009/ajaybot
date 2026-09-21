@@ -133,11 +133,17 @@ function sendToken(res, text) {
 }
 
 function providerOrder(preferred) {
-  const fallbackOrder = ['openrouter', 'gemini', 'anthropic', 'ollama'];
-  if (preferred === 'auto') return OLLAMA_ENABLED ? fallbackOrder : fallbackOrder.filter(p => p !== 'ollama');
+  const cloudFirst = ['openrouter', 'gemini', 'anthropic'];
+  if (preferred === 'auto') {
+    // Local development: prefer the Ollama models installed on this machine.
+    // Hosted Render: use cloud providers because the user's laptop is not reachable.
+    return OLLAMA_ENABLED
+      ? ['ollama', ...cloudFirst]
+      : cloudFirst;
+  }
   if (preferred === 'ollama') return OLLAMA_ENABLED ? ['ollama'] : [];
-  const cloud = fallbackOrder.filter(p => p !== 'ollama' && p !== preferred);
-  return [preferred, ...cloud, 'ollama'].filter(Boolean);
+  const cloud = cloudFirst.filter(p => p !== preferred);
+  return [preferred, ...cloud, ...(OLLAMA_ENABLED ? ['ollama'] : [])].filter(Boolean);
 }
 
 function errorStatus(message) {
@@ -149,7 +155,7 @@ function shouldFallback(message) {
   const status = errorStatus(message);
   return status === 401 || status === 402 || status === 408 || status === 409 || status === 429 ||
     status === 500 || status === 502 || status === 503 || status === 504 ||
-    /ECONNREFUSED|ENOTFOUND|fetch failed|timed out|timeout/i.test(String(message || ''));
+    /returned no response content|ECONNREFUSED|ENOTFOUND|fetch failed|timed out|timeout/i.test(String(message || ''));
 }
 
 
