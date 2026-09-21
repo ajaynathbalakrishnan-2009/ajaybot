@@ -65,7 +65,9 @@ function getKey(provider) {
 }
 
 function modelFor(provider, tier) {
-  return MODEL_MAP[provider]?.[tier] || MODEL_MAP[provider]?.balanced;
+  const model = MODEL_MAP[provider]?.[tier] || MODEL_MAP[provider]?.balanced;
+  if (!model) throw new Error(`No model configured for ${provider}.`);
+  return model;
 }
 function decodeDataUrl(dataUrl) {
   const match = /^data:([^;,]+)?;base64,(.*)$/s.exec(dataUrl || '');
@@ -119,7 +121,7 @@ async function streamFetch(res, response, parser) {
 }
 
 async function callGemini(res, body, key, model) {
-  const messages = body.messages || [];
+  const messages = Array.isArray(body.messages) ? body.messages : [];
   const lastIndex = lastUserIndex(messages);
   const attachments = body.attachments || [];
   const contents = messages
