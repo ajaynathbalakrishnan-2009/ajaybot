@@ -204,6 +204,7 @@ function AuthenticatedApp() {
         model: settings.model,
         settings,
         attachments,
+        accessToken: authSession?.access_token,
         signal: abortControllerRef.current.signal,
         onThinking: (thinkingTokens) => {
           setChats(prev =>
@@ -380,6 +381,7 @@ function AuthenticatedApp() {
 
 export default function App() {
   const [authUser, setAuthUser] = useState(null);
+  const [authSession, setAuthSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
@@ -389,16 +391,18 @@ export default function App() {
     }
 
     let mounted = true;
-    supabase.auth.getUser()
-      .then(async ({ data }) => {
+    supabase.auth.getSession()
+      .then(({ data }) => {
         if (!mounted) return;
-        setAuthUser(data.user || null);
+        setAuthSession(data.session || null);
+        setAuthUser(data.session?.user || null);
       })
       .finally(() => {
         if (mounted) setAuthLoading(false);
       });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthSession(session || null);
       setAuthUser(session?.user || null);
     });
 
