@@ -43,7 +43,7 @@ export default function ModelSelector({ currentModelId, onSelectModel }) {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-white dark:bg-brand-surface shadow-brand-popover border border-slate-200 dark:border-brand-border py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute left-0 bottom-full mb-2 w-[min(18rem,calc(100vw-2rem))] max-h-[60vh] overflow-y-auto overscroll-contain rounded-2xl bg-white dark:bg-brand-surface shadow-brand-popover border border-slate-200 dark:border-brand-border py-2 z-[100] animate-in fade-in zoom-in-95 duration-100">
           <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
             Select Intelligence Model
           </div>
