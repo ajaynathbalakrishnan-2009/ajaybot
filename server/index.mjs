@@ -5,8 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { AccessToken } from 'livekit-server-sdk';
-import { RoomAgentDispatch, RoomConfiguration } from '@livekit/protocol';
+import { AccessToken, LiveKitAPI } from 'livekit-server-sdk';
 
 const PORT = Number(process.env.PORT || 8787);
 const __filename = fileURLToPath(import.meta.url);
@@ -215,16 +214,20 @@ async function createVoiceConnection(user) {
 
   token.addGrant(grant);
 
-  token.roomConfig = new RoomConfiguration({
-    agents: [
-      new RoomAgentDispatch({
-        agentName: LIVEKIT_AGENT_NAME,
-        metadata: JSON.stringify({
-          userId: user.id,
-          displayName,
-        }),
-      }),
-    ],
+  // Keep the participant JWT simple and dispatch the voice agent through
+  // LiveKit's server-side Agent Dispatch API. This avoids embedding protobuf
+  // room configuration into the client join token.
+  const livekitApi = new LiveKitAPI({
+    host: LIVEKIT_URL,
+    apiKey: LIVEKIT_API_KEY,
+    secret: LIVEKIT_API_SECRET,
+  });
+
+  await livekitApi.agentDispatch.createDispatch(roomName, LIVEKIT_AGENT_NAME, {
+    metadata: JSON.stringify({
+      userId: user.id,
+      displayName,
+    }),
   });
 
   return {
