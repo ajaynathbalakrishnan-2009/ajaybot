@@ -253,11 +253,19 @@ async function streamFetch(res, response, parser) {
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+
+    // Provider SSE streams may use either LF or CRLF line endings.
+    // Normalize line endings before splitting events so we never lose
+    // all but the first streamed token.
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
     const parts = buffer.split('\n\n');
     buffer = parts.pop() || '';
     for (const part of parts) parser(part, res);
   }
+
+  // Flush any remaining decoder bytes and normalize line endings.
+  buffer += decoder.decode();
+  buffer = buffer.replace(/\r\n/g, '\n');
   if (buffer.trim()) parser(buffer, res);
 }
 
