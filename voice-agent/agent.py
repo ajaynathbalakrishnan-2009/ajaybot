@@ -13,7 +13,7 @@ load_dotenv(ROOT_ENV)
 load_dotenv()
 
 AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME", "ajaybot-voice")
-MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-2.5-flash-native-audio-latest")
+MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-3.8-live")
 VOICE = os.getenv("GEMINI_LIVE_VOICE", "Charon")
 
 
