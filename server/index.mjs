@@ -573,6 +573,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/api/health') {
     const livekitConfigured = Boolean(LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET);
     let livekitApi = false;
+    let livekitApiError = null;
 
     if (livekitConfigured) {
       try {
@@ -584,7 +585,10 @@ const server = http.createServer(async (req, res) => {
         await livekitApiClient.room.listRooms();
         livekitApi = true;
       } catch (error) {
-        console.warn('LiveKit credential check failed:', error?.message || error);
+        livekitApiError = String(error?.message || error)
+          .replace(/(api[_ -]?key|secret|token|authorization|bearer)[:=\s]+[^\s,;]+/gi, '$1: [redacted]')
+          .slice(0, 300);
+        console.warn('LiveKit credential check failed:', livekitApiError);
       }
     }
 
@@ -596,6 +600,7 @@ const server = http.createServer(async (req, res) => {
         openrouter: Boolean(process.env.OPENROUTER_API_KEY),
         livekit: livekitConfigured,
         livekitApi,
+        livekitApiError,
         ollama: OLLAMA_ENABLED && await fetch(OLLAMA_BASE_URL + '/api/version').then(r => r.ok).catch(() => false),
       },
     });
