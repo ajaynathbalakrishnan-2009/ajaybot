@@ -242,7 +242,7 @@ async function createVoiceConnection(user) {
 async function readBody(req) {
   let body = '';
   for await (const chunk of req) body += chunk;
-  if (body.length > 2_000_000) throw new Error('Request is too large.');
+  if (body.length > 12_000_000) throw new Error('Request is too large. Maximum request size is 12 MB.');
   return JSON.parse(body || '{}');
 }
 
@@ -554,7 +554,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     });
     return res.end();
@@ -570,12 +570,21 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if (req.method === 'GET' && req.url === '/api/health') {
-    const livekitConfigured = Boolean(LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET);
-    let livekitApi = false;
+  if (req.method === 'GET' && req.url.startsWith('/api/health')) {
+    const requestUrl = new URL(req.url, 'http://localhost');
+    const deep = requestUrl.searchParams.get('deep') === '1';
+    const configured = {
+      gemini: Boolean(getKey('gemini')),
+      anthropic: Boolean(getKey('anthropic')),
+      openrouter: Boolean(getKey('openrouter')),
+      livekit: Boolean(LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET),
+      ollama: OLLAMA_ENABLED && await fetch(OLLAMA_BASE_URL + '/api/version').then(r => r.ok).catch(() => false),
+    };
+
+    let livekitApi = null;
     let livekitApiError = null;
 
-    if (livekitConfigured) {
+    if (deep && configured.livekit) {
       try {
         const livekitApiClient = new LiveKitAPI({
           host: LIVEKIT_API_HOST,
@@ -585,8 +594,9 @@ const server = http.createServer(async (req, res) => {
         await livekitApiClient.room.listRooms();
         livekitApi = true;
       } catch (error) {
+        livekitApi = false;
         livekitApiError = String(error?.message || error)
-          .replace(/(api[_ -]?key|secret|token|authorization|bearer)[:=\s]+[^\s,;]+/gi, '$1: [redacted]')
+          .replace(/(api[_ -]?key|secret|token|authorization|bearer)[:=\\s]+[^\\s,;]+/gi, '$1: [redacted]')
           .slice(0, 300);
         console.warn('LiveKit credential check failed:', livekitApiError);
       }
@@ -594,15 +604,8 @@ const server = http.createServer(async (req, res) => {
 
     return json(res, 200, {
       ok: true,
-      configured: {
-        gemini: Boolean(process.env.GEMINI_API_KEY),
-        anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
-        openrouter: Boolean(process.env.OPENROUTER_API_KEY),
-        livekit: livekitConfigured,
-        livekitApi,
-        livekitApiError,
-        ollama: OLLAMA_ENABLED && await fetch(OLLAMA_BASE_URL + '/api/version').then(r => r.ok).catch(() => false),
-      },
+      configured,
+      ...(deep ? { livekitApi, livekitApiError } : {}),
     });
   }
 
