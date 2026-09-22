@@ -21,6 +21,14 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: LIVEKIT_AGENT_NAME
+        value: ajaybot-voice
       - key: ALLOWED_ORIGIN
         value: "*"
       - key: OPENROUTER_FLAGSHIP_MODEL
