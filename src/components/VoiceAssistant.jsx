@@ -3,11 +3,12 @@ import { Mic, MicOff, PhoneOff, X, Loader2, Radio } from 'lucide-react';
 import { Room, RoomEvent, Track } from 'livekit-client';
 import { supabase } from '../lib/supabase';
 
-function attachAudioTrack(track, audioElements) {
+function attachAudioTrack(track, audioElements, onBlocked) {
   if (!track || track.kind !== Track.Kind.Audio) return;
   const elements = track.attach();
   elements.forEach((element) => {
     element.autoplay = true;
+    element.playsInline = true;
     element.setAttribute('aria-hidden', 'true');
     element.style.position = 'fixed';
     element.style.width = '1px';
@@ -16,6 +17,10 @@ function attachAudioTrack(track, audioElements) {
     element.style.pointerEvents = 'none';
     document.body.appendChild(element);
     audioElements.push(element);
+
+    // Chrome/Edge may block autoplay for remote audio. Try immediately,
+    // then surface an explicit speaker-unlock action when required.
+    element.play?.().catch(() => onBlocked?.());
   });
 }
 
@@ -25,6 +30,8 @@ export default function VoiceAssistant({ open, onClose, userName = 'Ajay' }) {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
   const [micEnabled, setMicEnabled] = useState(false);
+  const [speakerBlocked, setSpeakerBlocked] = useState(false);
+  const [agentConnected, setAgentConnected] = useState(false);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -79,10 +86,25 @@ export default function VoiceAssistant({ open, onClose, userName = 'Ajay' }) {
         roomRef.current = room;
 
         const handleTrackSubscribed = (track) => {
-          attachAudioTrack(track, audioElementsRef.current);
+          attachAudioTrack(track, audioElementsRef.current, () => setSpeakerBlocked(true));
+        };
+
+        const handleParticipantConnected = () => {
+          if (!cancelled) setAgentConnected(true);
+        };
+
+        const handleParticipantDisconnected = () => {
+          if (!cancelled) setAgentConnected(false);
+        };
+
+        const handleAudioPlaybackStatus = () => {
+          if (!cancelled) setSpeakerBlocked(!room.canPlaybackAudio);
         };
 
         room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+        room.on(RoomEvent.ParticipantConnected, handleParticipantConnected);
+        room.on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+        room.on(RoomEvent.AudioPlaybackStatusChanged, handleAudioPlaybackStatus);
         room.on(RoomEvent.Disconnected, () => {
           if (!cancelled) {
             setMicEnabled(false);
@@ -92,6 +114,15 @@ export default function VoiceAssistant({ open, onClose, userName = 'Ajay' }) {
 
         await room.connect(connection.serverUrl, connection.participantToken);
 
+        // Explicitly attempt to unlock audio after connecting. If the browser
+        // blocks autoplay, the UI will show an Enable speaker button.
+        try {
+          await room.startAudio();
+          setSpeakerBlocked(false);
+        } catch {
+          setSpeakerBlocked(true);
+        }
+
         if (cancelled) {
           await room.disconnect();
           return;
@@ -99,7 +130,7 @@ export default function VoiceAssistant({ open, onClose, userName = 'Ajay' }) {
 
         for (const participant of room.remoteParticipants.values()) {
           for (const publication of participant.trackPublications.values()) {
-            if (publication.track) attachAudioTrack(publication.track, audioElementsRef.current);
+            if (publication.track) attachAudioTrack(publication.track, audioElementsRef.current, () => setSpeakerBlocked(true));
           }
         }
 
@@ -131,9 +162,26 @@ export default function VoiceAssistant({ open, onClose, userName = 'Ajay' }) {
       });
       audioElementsRef.current = [];
       setMicEnabled(false);
+      setAgentConnected(false);
+      setSpeakerBlocked(false);
       setStatus('idle');
     };
   }, [open]);
+
+  const enableSpeaker = async () => {
+    const room = roomRef.current;
+    if (!room) return;
+
+    try {
+      await room.startAudio();
+      setSpeakerBlocked(false);
+      audioElementsRef.current.forEach((element) => {
+        element.play?.().catch(() => {});
+      });
+    } catch (err) {
+      setError(err?.message || 'Browser blocked audio playback. Check your browser audio permissions.');
+    }
+  };
 
   const toggleMic = async () => {
     const room = roomRef.current;
@@ -209,6 +257,24 @@ export default function VoiceAssistant({ open, onClose, userName = 'Ajay' }) {
             {status === 'connected' ? `I'm listening, ${userName}.` : 'Talk to AjayBot'}
           </h3>
           <p className="mt-2 text-sm text-slate-400">{statusText}</p>
+
+          {status === 'connected' && (
+            <div className="mt-3 text-[11px] text-slate-500">
+              {agentConnected ? 'Agent connected' : 'Waiting for AjayBot agent…'}
+              {' • '}
+              {micEnabled ? 'Microphone active' : 'Microphone muted'}
+            </div>
+          )}
+
+          {speakerBlocked && status === 'connected' && (
+            <button
+              type="button"
+              onClick={enableSpeaker}
+              className="mt-4 px-4 py-2 rounded-xl bg-cyan-400/15 border border-cyan-300/30 text-cyan-200 text-xs font-semibold hover:bg-cyan-400/25"
+            >
+              Enable speaker
+            </button>
+          )}
 
           {error && (
             <div className="mt-5 rounded-2xl bg-red-950/50 border border-red-500/20 px-4 py-3 text-left text-xs text-red-200">
