@@ -225,6 +225,10 @@ export default function VoiceAssistant({ open, onClose, userName = 'Ajay' }) {
         const connected = room.remoteParticipants.size > 0;
         agentConnectedRef.current = connected;
         setAgentConnected(connected);
+
+        if (!connected && status === 'connected') {
+          setError('The AjayBot voice agent disconnected. End the call and start voice again.');
+        }
       });
 
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
