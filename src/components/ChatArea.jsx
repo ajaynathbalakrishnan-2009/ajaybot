@@ -11,7 +11,8 @@ import {
   Cpu,
   Sparkles,
   AlertTriangle,
-  X
+  X,
+  Mic
 } from 'lucide-react';
 import MessageItem from './MessageItem';
 import ChatInput from './ChatInput';
@@ -32,6 +33,7 @@ export default function ChatArea({
   isArtifactPanelOpen,
   onToggleArtifactPanel,
   onOpenSettings,
+  onOpenVoice,
   isDemoMode = false,
   userName = 'Ajay'
 }) {
@@ -98,6 +100,16 @@ export default function ChatArea({
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* LiveKit Voice Mode */}
+          <button
+            onClick={onOpenVoice}
+            title="Start AjayBot Voice"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition"
+          >
+            <Mic className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Voice</span>
+          </button>
+
           {/* Artifact Toggle Button */}
           {activeArtifact && (
             <button
