@@ -3,7 +3,10 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { AccessToken, VideoGrant } from 'livekit-server-sdk';
+import { RoomAgentDispatch, RoomConfiguration } from '@livekit/protocol';
 
 const PORT = Number(process.env.PORT || 8787);
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +19,10 @@ const OLLAMA_ENABLED = process.env.OLLAMA_ENABLED != null
   : process.env.RENDER !== 'true';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || '';
+const LIVEKIT_URL = process.env.LIVEKIT_URL || '';
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || '';
+const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '';
+const LIVEKIT_AGENT_NAME = process.env.LIVEKIT_AGENT_NAME || 'ajaybot-voice';
 const supabase = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
@@ -106,7 +113,7 @@ function json(res, status, body) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
   });
   res.end(JSON.stringify(body));
@@ -182,6 +189,52 @@ async function requireUser(req) {
 
   return data.user;
 }
+}
+
+async function createVoiceConnection(user) {
+  if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+    const error = new Error('LiveKit voice is not configured on the server. Add LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.');
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const roomName = `ajaybot-voice-${user.id}-${randomUUID().slice(0, 12)}`;
+  const participantIdentity = `ajaybot-user-${user.id}-${randomUUID().slice(0, 8)}`;
+  const displayName = user.user_metadata?.display_name || user.email || 'AjayBot User';
+
+  const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+    identity: participantIdentity,
+    name: displayName,
+  });
+
+  const grant = {
+    room: roomName,
+    roomJoin: true,
+    canPublish: true,
+    canSubscribe: true,
+  };
+
+  token.addGrant(grant);
+
+  token.roomConfig = new RoomConfiguration({
+    agents: [
+      new RoomAgentDispatch({
+        agentName: LIVEKIT_AGENT_NAME,
+        metadata: JSON.stringify({
+          userId: user.id,
+          displayName,
+        }),
+      }),
+    ],
+  });
+
+  return {
+    serverUrl: LIVEKIT_URL,
+    participantToken: await token.toJwt(),
+    roomName,
+    agentName: LIVEKIT_AGENT_NAME,
+  };
+
 
 async function readBody(req) {
   let body = '';
@@ -504,6 +557,16 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
+  if (req.method === 'POST' && req.url === '/api/voice-token') {
+    try {
+      const user = await requireUser(req);
+      const connection = await createVoiceConnection(user);
+      return json(res, 200, connection);
+    } catch (error) {
+      return json(res, error.statusCode || 500, { error: error.message || 'Voice session could not be created.' });
+    }
+  }
+
   if (req.method === 'GET' && req.url === '/api/health') {
     return json(res, 200, {
       ok: true,
@@ -511,6 +574,7 @@ const server = http.createServer(async (req, res) => {
         gemini: Boolean(process.env.GEMINI_API_KEY),
         anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
         openrouter: Boolean(process.env.OPENROUTER_API_KEY),
+        livekit: Boolean(LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET),
         ollama: OLLAMA_ENABLED && await fetch(OLLAMA_BASE_URL + '/api/version').then(r => r.ok).catch(() => false),
       },
     });
