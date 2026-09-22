@@ -199,12 +199,55 @@ LIVEKIT_AGENT_NAME=ajaybot-voice
 
 ### Run the voice agent locally
 
-```bash
+On Windows, the repository includes `voice-agent/run-dev.ps1` so the LiveKit CLI works even when `lk.exe` is not on your PATH:
+
+```powershell
 cd voice-agent
-pip install -r requirements.txt
-python agent.py dev
+powershell -ExecutionPolicy Bypass -File .\\run-dev.ps1
 ```
 
-For production, deploy the `voice-agent` directory as a LiveKit Cloud Agent. The deployed agent name must be `ajaybot-voice`, and the agent deployment needs `GOOGLE_API_KEY` plus the LiveKit credentials required by the LiveKit Agent runtime.
+For a direct CLI run:
 
-LiveKit recommends a production token endpoint rather than exposing API secrets in frontend code; AjayBot's `/api/voice-token` endpoint follows that pattern. See the LiveKit authentication and agent-dispatch documentation for the underlying flow.
+```bash
+cd voice-agent
+lk agent dev
+```
+
+Use `lk agent console` to test the agent locally with your microphone and speakers without creating a LiveKit room.
+
+### Deploy the production voice agent
+
+A public AjayBot deployment must have `ajaybot-voice` running as a **production LiveKit Cloud agent**. `lk agent dev` is only a local worker and is not a substitute for the production deployment.
+
+The repository includes `voice-agent/deploy-production.ps1`. It reads `GOOGLE_API_KEY` from the private project `.env` and sends it to LiveKit as a deployment secret; the secret is not committed to GitHub:
+
+```powershell
+cd voice-agent
+powershell -ExecutionPolicy Bypass -File .\\deploy-production.ps1
+```
+
+The helper creates the production agent the first time (generating `livekit.toml`) and uses `lk agent deploy` for later releases. LiveKit Cloud excludes `.env.*` files from the build context, so runtime secrets must be supplied through its secrets mechanism. citeturn826299search1turn826299search3
+
+The AjayBot web backend uses a short-lived participant token and explicit server-side agent dispatch. LiveKit recommends this explicit dispatch pattern, while keeping API credentials server-side. citeturn284044search0
+
+### Current Gemini models
+
+Text chat uses `gemini-3.8-flash`. Realtime voice uses `gemini-3.8-live`. Both are stable September 2026 models, and Gemini 3.8 Live is the default low-latency Live API model for most voice-agent experiences. citeturn642777search0turn642777search2turn642777search4
+
+### Important deployment rule
+
+The Render web service and the LiveKit voice agent are separate runtimes:
+
+```text
+Browser
+  ↓
+Render (AjayBot web + /api/voice-token)
+  ↓
+LiveKit Cloud room
+  ↓
+Production ajaybot-voice agent
+  ↓
+Gemini 3.8 Live
+```
+
+Running `lk agent dev` on your Windows PC is useful for local development, but it does not make the public Render site's voice agent available. The public site should dispatch to the production LiveKit deployment. citeturn826299search1turn826299search2
