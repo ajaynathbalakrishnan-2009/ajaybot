@@ -26,7 +26,7 @@ $lkCommand = Get-Command lk -ErrorAction SilentlyContinue
 if ($lkCommand) {
     $lkPath = $lkCommand.Source
 } else {
-    $lkPath = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\LiveKit.LiveKitCLI*\lk.exe" -ErrorAction SilentlyContinue |
+    $lkPath = Get-ChildItem "$env:LOCALAPPDATAMicrosoftWinGetPackagesLiveKit.LiveKitCLI*\lk.exe" -ErrorAction SilentlyContinue |
         Select-Object -First 1 -ExpandProperty FullName
 }
 
@@ -34,18 +34,36 @@ if (-not $lkPath) {
     Write-Error "LiveKit CLI was not found."
 }
 
+# Always regenerate the Dockerfile from the current working directory.
+# This prevents Windows absolute paths such as C:Users... from being
+# embedded in the Linux production container.
+Write-Host "Generating a clean production Dockerfile..."
+& $lkPath agent dockerfile --overwrite
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
 $configPath = Join-Path $agentDir "livekit.toml"
 
 if (Test-Path $configPath) {
     Write-Host "Deploying the existing AjayBot Voice agent to production..."
-    & $lkPath agent deploy --secrets "GOOGLE_API_KEY=$googleApiKey" $agentDir
+    & $lkPath agent deploy --secrets "GOOGLE_API_KEY=$googleApiKey"
 } else {
     Write-Host "Creating the AjayBot Voice production deployment..."
-    & $lkPath agent create --secrets "GOOGLE_API_KEY=$googleApiKey" $agentDir
+    & $lkPath agent create --secrets "GOOGLE_API_KEY=$googleApiKey"
 }
 
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
+}
+
+Write-Host ""
+Write-Host "Deployment command completed. Checking agent status..."
+& $lkPath agent status
+$statusExitCode = $LASTEXITCODE
+
+if ($statusExitCode -ne 0) {
+    Write-Warning "The deployment command succeeded, but the status check returned exit code $statusExitCode. Run 'lk agent logs' from this folder for runtime details."
 }
 
 Write-Host "AjayBot Voice production deployment completed."
