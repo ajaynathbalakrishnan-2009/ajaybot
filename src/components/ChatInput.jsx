@@ -11,8 +11,17 @@ export default function ChatInput({
 }) {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]);
+  const [attachmentError, setAttachmentError] = useState('');
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  const MAX_FILE_SIZE = 3 * 1024 * 1024;
+  const MAX_TOTAL_SIZE = 6 * 1024 * 1024;
+  const TEXT_EXTENSIONS = new Set([
+    'txt', 'md', 'markdown', 'json', 'csv', 'tsv', 'js', 'jsx', 'ts', 'tsx',
+    'css', 'html', 'htm', 'xml', 'yaml', 'yml', 'py', 'java', 'c', 'cpp',
+    'h', 'hpp', 'cs', 'go', 'rs', 'sql', 'sh', 'bat', 'ps1'
+  ]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -42,34 +51,77 @@ export default function ChatInput({
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
+    setAttachmentError('');
+
+    const currentTotal = attachments.reduce((sum, file) => sum + (file.size || 0), 0);
+    let nextTotal = currentTotal;
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        setAttachmentError(`"${file.name}" is too large. Maximum file size is 3 MB.`);
+        continue;
+      }
+
       const isImage = file.type.startsWith('image/');
+      const extension = file.name.includes('.')
+        ? file.name.split('.').pop().toLowerCase()
+        : '';
+      const isText = TEXT_EXTENSIONS.has(extension) ||
+        file.type.startsWith('text/') ||
+        file.type.includes('json') ||
+        file.type.includes('javascript') ||
+        file.type.includes('xml');
+
+      if (!isImage && !isText) {
+        setAttachmentError(
+          `"${file.name}" is not a supported attachment type. Use an image or a text/code file.`,
+        );
+        continue;
+      }
+
+      if (nextTotal + file.size > MAX_TOTAL_SIZE) {
+        setAttachmentError('Attachments are limited to 6 MB total.');
+        break;
+      }
+
+      nextTotal += file.size;
+
       const reader = new FileReader();
       reader.onload = (event) => {
+        const dataUrl = event.target?.result;
+        if (typeof dataUrl !== 'string') {
+          setAttachmentError(`Could not read "${file.name}". Please try again.`);
+          return;
+        }
+
         setAttachments((prev) => [
           ...prev,
           {
-            id: Math.random().toString(),
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             name: file.name,
             size: file.size,
-            type: file.type,
+            type: file.type || (isText ? 'text/plain' : 'application/octet-stream'),
             isImage,
-            dataUrl: event.target.result,
+            dataUrl,
           },
         ]);
       };
-      if (isImage) {
-        reader.readAsDataURL(file);
-      } else {
-        reader.readAsText(file);
-      }
-    });
-    // Reset file input
+      reader.onerror = () => {
+        setAttachmentError(`Could not read "${file.name}". Please try again.`);
+      };
+
+      // Read both images and text/code as data URLs. The backend decodes
+      // text attachments from base64; readAsText would otherwise lose them.
+      reader.readAsDataURL(file);
+    }
+
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+
   const removeAttachment = (id) => {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
+    setAttachmentError('');
   };
 
   return (
