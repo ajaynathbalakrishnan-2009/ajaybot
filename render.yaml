@@ -9,6 +9,14 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_FLAGSHIP_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_BALANCED_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_FAST_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_PRO_MODEL
+        value: gemini-3.8-flash
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
@@ -50,4 +58,4 @@ services:
       - key: OLLAMA_FAST_MODEL
         value: llama3.2:latest
       - key: OLLAMA_PRO_MODEL
-        value: value: qwen3:4b
+        value: qwen3:4b
