@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from livekit import agents
@@ -7,6 +8,8 @@ from livekit.plugins import google, noise_cancellation
 
 from prompt import AGENT_INSTRUCTION
 
+ROOT_ENV = Path(__file__).resolve().parents[1] / '.env'
+load_dotenv(ROOT_ENV)
 load_dotenv()
 
 AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME", "ajaybot-voice")
