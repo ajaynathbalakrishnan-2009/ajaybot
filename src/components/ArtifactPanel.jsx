@@ -25,7 +25,12 @@ export default function ArtifactPanel({ artifact, onClose }) {
   const handleDownload = () => {
     const ext = artifact.type.includes('html') ? '.html' : artifact.type.includes('svg') ? '.svg' : '.txt';
     const filename = `${artifact.identifier || 'artifact'}${ext}`;
-    const blob = new Blob([artifact.code], { type: 'text/plain;charset=utf-8' });
+    const mimeType = artifact.type.includes('html')
+      ? 'text/html;charset=utf-8'
+      : artifact.type.includes('svg')
+        ? 'image/svg+xml;charset=utf-8'
+        : 'text/plain;charset=utf-8';
+    const blob = new Blob([artifact.code], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -131,7 +136,7 @@ export default function ArtifactPanel({ artifact, onClose }) {
             key={iframeKey}
             srcDoc={artifact.code}
             title={artifact.title}
-            sandbox="allow-scripts allow-modals allow-same-origin"
+            sandbox="allow-scripts allow-modals"
             className="w-full h-full border-none bg-white dark:bg-slate-950"
           />
         ) : (
