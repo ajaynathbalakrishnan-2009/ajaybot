@@ -226,13 +226,13 @@ cd voice-agent
 powershell -ExecutionPolicy Bypass -File .\\deploy-production.ps1
 ```
 
-The helper creates the production agent the first time (generating `livekit.toml`) and uses `lk agent deploy` for later releases. LiveKit Cloud excludes `.env.*` files from the build context, so runtime secrets must be supplied through its secrets mechanism. citeturn826299search1turn826299search3
+The helper creates the production agent the first time (generating `livekit.toml`) and uses `lk agent deploy` for later releases. LiveKit Cloud excludes `.env.*` files from the build context, so runtime secrets must be supplied through its secrets mechanism. [LiveKit agent CLI](https://docs.livekit.io/reference/developer-tools/livekit-cli/agent/) and [build docs](https://docs.livekit.io/deploy/agents/builds/).
 
-The AjayBot web backend uses a short-lived participant token and explicit server-side agent dispatch. LiveKit recommends this explicit dispatch pattern, while keeping API credentials server-side. citeturn284044search0
+The AjayBot web backend uses a short-lived participant token and explicit server-side agent dispatch. LiveKit recommends this explicit dispatch pattern, while keeping API credentials server-side. See the [LiveKit agent dispatch documentation](https://docs.livekit.io/agents/logic/agent-dispatch/).
 
 ### Current Gemini models
 
-Text chat uses `gemini-3.8-flash`. Realtime voice uses `gemini-3.8-live`. Both are stable September 2026 models, and Gemini 3.8 Live is the default low-latency Live API model for most voice-agent experiences. citeturn642777search0turn642777search2turn642777search4
+Text chat uses `gemini-3.8-flash`. Realtime voice uses `gemini-3.8-live`. Both are stable September 2026 models, and Gemini 3.8 Live is the default low-latency Live API model for most voice-agent experiences. See the [Gemini 3.8 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) and [Gemini 3.8 Live](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-live) documentation.
 
 ### Important deployment rule
 
@@ -250,4 +250,4 @@ Production ajaybot-voice agent
 Gemini 3.8 Live
 ```
 
-Running `lk agent dev` on your Windows PC is useful for local development, but it does not make the public Render site's voice agent available. The public site should dispatch to the production LiveKit deployment. citeturn826299search1turn826299search2
+Running `lk agent dev` on your Windows PC is useful for local development, but it does not make the public Render site's voice agent available. The public site should dispatch to the production LiveKit deployment. See the [LiveKit agent deployment docs](https://docs.livekit.io/reference/developer-tools/livekit-cli/agent/).
