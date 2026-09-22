@@ -189,7 +189,6 @@ async function requireUser(req) {
 
   return data.user;
 }
-}
 
 async function createVoiceConnection(user) {
   if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
@@ -234,7 +233,7 @@ async function createVoiceConnection(user) {
     roomName,
     agentName: LIVEKIT_AGENT_NAME,
   };
-
+}
 
 async function readBody(req) {
   let body = '';
