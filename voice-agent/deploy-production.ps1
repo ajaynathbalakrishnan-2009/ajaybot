@@ -17,7 +17,7 @@ if (-not $googleLine) {
     Write-Error "GOOGLE_API_KEY is missing from the project .env file."
 }
 
-$googleApiKey = $googleLine.Substring("GOOGLE_API_KEY=".Length).Trim()
+$googleApiKey = $googleLine.Substring("GOOGLE_API_KEY=".Length).Trim().Trim('"')
 if (-not $googleApiKey) {
     Write-Error "GOOGLE_API_KEY is empty."
 }
@@ -38,7 +38,7 @@ $configPath = Join-Path $agentDir "livekit.toml"
 
 if (Test-Path $configPath) {
     Write-Host "Deploying the existing AjayBot Voice agent to production..."
-    & $lkPath agent deploy $agentDir
+    & $lkPath agent deploy --secrets "GOOGLE_API_KEY=$googleApiKey" $agentDir
 } else {
     Write-Host "Creating the AjayBot Voice production deployment..."
     & $lkPath agent create --secrets "GOOGLE_API_KEY=$googleApiKey" $agentDir
