@@ -181,3 +181,30 @@ SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
 ```
 
 The AjayBot backend verifies the signed-in user's access token before allowing AI requests. This is an AjayBot user session credential; it does not create a new Gemini or OpenRouter API key for each user. Those providers do not delegate your account's secret key creation to AjayBot.
+
+## 🎙️ Realtime Voice Mode
+
+AjayBot now includes a LiveKit-powered realtime voice mode. The browser requests a short-lived user token from the authenticated AjayBot backend; the backend keeps the LiveKit API credentials private and embeds an explicit dispatch for the `ajaybot-voice` agent.
+
+### LiveKit configuration
+
+Add these server environment variables to local `.env` and to the Render service:
+
+```env
+LIVEKIT_URL=wss://YOUR_PROJECT.livekit.cloud
+LIVEKIT_API_KEY=YOUR_LIVEKIT_API_KEY
+LIVEKIT_API_SECRET=YOUR_LIVEKIT_API_SECRET
+LIVEKIT_AGENT_NAME=ajaybot-voice
+```
+
+### Run the voice agent locally
+
+```bash
+cd voice-agent
+pip install -r requirements.txt
+python agent.py dev
+```
+
+For production, deploy the `voice-agent` directory as a LiveKit Cloud Agent. The deployed agent name must be `ajaybot-voice`, and the agent deployment needs `GOOGLE_API_KEY` plus the LiveKit credentials required by the LiveKit Agent runtime.
+
+LiveKit recommends a production token endpoint rather than exposing API secrets in frontend code; AjayBot's `/api/voice-token` endpoint follows that pattern. See the LiveKit authentication and agent-dispatch documentation for the underlying flow.
