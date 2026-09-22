@@ -19,6 +19,7 @@ const OLLAMA_ENABLED = process.env.OLLAMA_ENABLED != null
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || '';
 const LIVEKIT_URL = process.env.LIVEKIT_URL || '';
+const LIVEKIT_API_HOST = LIVEKIT_URL.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || '';
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '';
 const LIVEKIT_AGENT_NAME = process.env.LIVEKIT_AGENT_NAME || 'ajaybot-voice';
@@ -218,7 +219,7 @@ async function createVoiceConnection(user) {
   // LiveKit's server-side Agent Dispatch API. This avoids embedding protobuf
   // room configuration into the client join token.
   const livekitApi = new LiveKitAPI({
-    host: LIVEKIT_URL,
+    host: LIVEKIT_API_HOST,
     apiKey: LIVEKIT_API_KEY,
     secret: LIVEKIT_API_SECRET,
   });
