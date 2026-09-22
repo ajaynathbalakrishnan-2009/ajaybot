@@ -604,13 +604,19 @@ export async function streamChatResponse({
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
     const events = buffer.split('\n\n');
     buffer = events.pop() || '';
     for (const event of events) processEvent(event);
   }
 
+  buffer += decoder.decode().replace(/\r\n/g, '\n');
   if (buffer.trim()) processEvent(buffer);
+
+  if (!accumulated && !signal?.aborted) {
+    throw new Error('AI provider returned an empty response.');
+  }
 }
 
 async function streamDemoResponse({ messages, model, settings, attachments, onToken, onThinking, onArtifactFound, signal }) {
