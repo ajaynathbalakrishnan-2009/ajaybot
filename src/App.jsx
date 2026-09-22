@@ -15,6 +15,7 @@ import {
 } from './services/storageService';
 import { streamChatResponse, parseArtifacts } from './services/chatService';
 import AuthScreen from './components/AuthScreen';
+import VoiceAssistant from './components/VoiceAssistant';
 import { supabase, isAuthConfigured } from './lib/supabase';
 
 function AuthenticatedApp({ authSession }) {
@@ -29,6 +30,7 @@ function AuthenticatedApp({ authSession }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeArtifact, setActiveArtifact] = useState(null);
   const [isArtifactPanelOpen, setIsArtifactPanelOpen] = useState(false);
+  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
 
   // Streaming State
   const [isStreaming, setIsStreaming] = useState(false);
@@ -356,6 +358,7 @@ function AuthenticatedApp({ authSession }) {
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onNewChat={handleNewChat}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenVoice={() => setIsVoiceOpen(true)}
           isDemoMode={settings.provider === 'simulated'}
           activeArtifact={activeArtifact}
           onOpenArtifact={handleOpenArtifact}
@@ -372,6 +375,12 @@ function AuthenticatedApp({ authSession }) {
           />
         )}
       </div>
+
+      <VoiceAssistant
+        open={isVoiceOpen}
+        onClose={() => setIsVoiceOpen(false)}
+        userName={settings.userName || authSession?.user?.user_metadata?.display_name || 'Ajay'}
+      />
 
       {/* Settings Modal */}
       <SettingsModal
