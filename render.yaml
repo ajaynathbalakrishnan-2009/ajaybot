@@ -38,7 +38,7 @@ services:
       - key: LIVEKIT_AGENT_NAME
         value: ajaybot-voice
       - key: ALLOWED_ORIGIN
-        value: "*"
+        value: https://ajaybot-pnto.onrender.com
       - key: OPENROUTER_FLAGSHIP_MODEL
         value: openrouter/free
       - key: OPENROUTER_BALANCED_MODEL
